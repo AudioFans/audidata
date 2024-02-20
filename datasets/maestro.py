@@ -6,7 +6,7 @@ import torchaudio
 import pretty_midi
 import os
 import numpy as np
-from constants import *
+from .constants import *
 
 class MaestroDataset:
 	# reference: https://github.com/pytorch/vision/blob/main/torchvision/datasets/mnist.py
@@ -88,7 +88,7 @@ class MaestroDataset:
 
 	def load_all(self, audio_path, midi_path):
 		# address to save the .pt file
-		saved_data_path = audio_path.replace('.flac', '.pt').replace('.wav', '.pt').replace("/lan/ifc", ".")
+		saved_data_path = audio_path.replace('.flac', '.pt').replace('.wav', '.pt').replace("/datasets/maestro-v2.0.0", "./datasets")
 		if os.path.exists(saved_data_path):
 			return torch.load(saved_data_path)
 

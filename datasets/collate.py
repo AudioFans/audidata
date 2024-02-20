@@ -22,7 +22,7 @@ def collate_fn(list_data_dict):
                     data=np.array(dd[key]),
                     size=max_len, 
                     axis=0, 
-                    constant_values=0
+                    constant_values=2
                 )
 
             data_dict[key] = torch.LongTensor(np.stack([dd[key] for dd in list_data_dict], axis=0))

@@ -1,6 +1,6 @@
 import re
 import numpy as np
-from constants import *
+from .constants import *
 
 
 class BaseTokenizer:
