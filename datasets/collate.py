@@ -17,6 +17,7 @@ def collate_fn(list_data_dict):
             
             for dd in list_data_dict:
 
+                #在token序列最后面补<pad>
                 dd[key] = librosa.util.fix_length(
                     data=np.array(dd[key]),
                     size=max_len, 
