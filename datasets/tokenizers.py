@@ -1,16 +1,16 @@
 import re
 import numpy as np
+from .constants import *
 
 
 class BaseTokenizer:
     def __init__(self):
-        
         self.strings = ["<pad>", "<sos>", "<eos>", "<unk>"]
         self.vocab_size = len(self.strings)
 
         self.token_to_string = {token: string for token, string in enumerate(self.strings)}
         self.string_to_token = {string: token for token, string in enumerate(self.strings)}
-        
+
     def itos(self, token):
         assert 0 <= token < self.vocab_size
         return self.token_to_string[token]
@@ -22,8 +22,8 @@ class BaseTokenizer:
 
 class TimeTokenizer:
     def __init__(self):
-        self.vocab_size = 6001
-        self.frames_per_second = 100
+        self.vocab_size = SEGMENT_SECONDS * TARGET_FRAMES_PER_SECONDS + 1
+        self.frames_per_second = TARGET_FRAMES_PER_SECONDS
 
     def itos(self, token):
         assert 0 <= token < self.vocab_size
@@ -35,29 +35,14 @@ class TimeTokenizer:
     def stoi(self, string):
         if "<time>" in string:
             time = float(re.search('<time>=(.*)', string).group(1))
-            token = int(time * self.frames_per_second)
+            token = int(time)
+            # token = int(time * self.frames_per_second)
             return token
 
 
 class InstrumentTokenizer:
     def __init__(self):
         self.vocab_size = 128
-
-    def itos(self, token):
-        assert 0 <= token < self.vocab_size
-
-        string = "<inst>={}".format(token)
-        return string
-
-    def stoi(self, string):
-        if "<inst>" in string:
-            token = int(re.search('<inst>=(.*)', string).group(1))
-            return token
-
-
-class InstrumentTokenizer129:
-    def __init__(self):
-        self.vocab_size = 129
 
     def itos(self, token):
         assert 0 <= token < self.vocab_size
@@ -142,7 +127,7 @@ class TieTokenizer:
 
         self.token_to_string = {token: string for token, string in enumerate(self.strings)}
         self.string_to_token = {string: token for token, string in enumerate(self.strings)}
-        
+
     def itos(self, token):
         assert 0 <= token < self.vocab_size
         return self.token_to_string[token]
@@ -250,7 +235,6 @@ class BarTokenizer:
 
 class BeatTokenizerDownUp:
     def __init__(self):
-
         self.vocab_size = 4
         self.strings = ["<beat_type>=down", "<beat_type>=up"]
 
@@ -368,8 +352,8 @@ class GtzanGenreTokenizer:
     def __init__(self):
         self.vocab_size = 10
 
-        genres = ["blues", "classical", "country", "disco", "hiphop", 
-            "jazz", "metal", "pop", "reggae", "rock"]
+        genres = ["blues", "classical", "country", "disco", "hiphop",
+                  "jazz", "metal", "pop", "reggae", "rock"]
 
         self.idx_to_genre = {idx: genre for idx, genre in enumerate(genres)}
         self.genre_to_idx = {genre: idx for idx, genre in enumerate(genres)}
@@ -390,8 +374,8 @@ class GtzanGenreTokenizer:
 class Tokenizer:
     def __init__(self):
         self.tokenizers = [
-            BaseTokenizer(), 
-            TimeTokenizer(), 
+            BaseTokenizer(),
+            TimeTokenizer(),
             InstrumentTokenizer(),
             SoundEventTokenizer(),
             PitchTokenizer(),
@@ -421,17 +405,17 @@ class Tokenizer:
                 token -= tokenizer.vocab_size
             else:
                 break
-            
+
         return tokenizer.itos(token)
 
     def stoi(self, string):
-        
+
         start_token = 0
 
         for tokenizer in self.tokenizers:
-            
+
             token = tokenizer.stoi(string)
-            
+
             if token is not None:
                 return start_token + token
             else:
@@ -441,8 +425,8 @@ class Tokenizer:
 class Tokenizer2:
     def __init__(self):
         self.tokenizers = [
-            BaseTokenizer(), 
-            TimeTokenizer(), 
+            BaseTokenizer(),
+            TimeTokenizer(),
             InstrumentTokenizer(),
             SoundEventTokenizer(),
             PitchTokenizer(),
@@ -473,17 +457,17 @@ class Tokenizer2:
                 token -= tokenizer.vocab_size
             else:
                 break
-            
+
         return tokenizer.itos(token)
 
     def stoi(self, string):
-        
+
         start_token = 0
 
         for tokenizer in self.tokenizers:
-            
+
             token = tokenizer.stoi(string)
-            
+
             if token is not None:
                 return start_token + token
             else:
@@ -492,26 +476,67 @@ class Tokenizer2:
         raise NotImplementedError("{} is not supported!".format(string))
 
 
+# class Tokenizer3:
+#     def __init__(self):
+#         self.tokenizers = [
+#             BaseTokenizer(),
+#             TimeTokenizer(),
+#             InstrumentTokenizer129(),
+#             SoundEventTokenizer(),
+#             PitchTokenizer(),
+#             DrumsTokenizer(),
+#             VelocityTokenizer(),
+#             TieTokenizer(),
+#             MidiControllerTokenizer(),
+#             KeyTokenizer(),
+#             ChordRootTokenizer(),
+#             ChordPlusTokenizer(),
+#             BarTokenizer(),
+#             BeatTokenizerDownUp(),
+#             BeatTokenizer(),
+#             SubBeatTokenizer(),
+#             StructureTokenizer(),
+#         ]
+#
+#         self.vocab_size = np.sum([tokenizer.vocab_size for tokenizer in self.tokenizers])
+#
+#         # for tokenizer in self.tokenizers:
+#         #     print(tokenizer.vocab_size)
+#
+#     def itos(self, token):
+#         assert 0 <= token < self.vocab_size
+#
+#         for tokenizer in self.tokenizers:
+#             if token >= tokenizer.vocab_size:
+#                 token -= tokenizer.vocab_size
+#             else:
+#                 break
+#
+#         return tokenizer.itos(token)
+#
+#     def stoi(self, string):
+#
+#         start_token = 0
+#
+#         for tokenizer in self.tokenizers:
+#
+#             token = tokenizer.stoi(string)
+#
+#             if token is not None:
+#                 return start_token + token
+#             else:
+#                 start_token += tokenizer.vocab_size
+#
+#         raise NotImplementedError("{} is not supported!".format(string))
+
 class Tokenizer3:
     def __init__(self):
         self.tokenizers = [
-            BaseTokenizer(), 
-            TimeTokenizer(), 
-            InstrumentTokenizer129(),
-            SoundEventTokenizer(),
+            BaseTokenizer(),
+            TimeTokenizer(),
             PitchTokenizer(),
-            DrumsTokenizer(),
             VelocityTokenizer(),
-            TieTokenizer(),
-            MidiControllerTokenizer(),
-            KeyTokenizer(),
-            ChordRootTokenizer(),
-            ChordPlusTokenizer(),
-            BarTokenizer(),
-            BeatTokenizerDownUp(),
-            BeatTokenizer(),
-            SubBeatTokenizer(),
-            StructureTokenizer(),
+            InstrumentTokenizer()
         ]
 
         self.vocab_size = np.sum([tokenizer.vocab_size for tokenizer in self.tokenizers])
@@ -527,17 +552,17 @@ class Tokenizer3:
                 token -= tokenizer.vocab_size
             else:
                 break
-            
+
         return tokenizer.itos(token)
 
     def stoi(self, string):
-        
+
         start_token = 0
 
         for tokenizer in self.tokenizers:
-            
+
             token = tokenizer.stoi(string)
-            
+
             if token is not None:
                 return start_token + token
             else:
@@ -549,8 +574,8 @@ class Tokenizer3:
 class Tokenizer3Gtzan:
     def __init__(self):
         self.tokenizers = [
-            BaseTokenizer(), 
-            TimeTokenizer(), 
+            BaseTokenizer(),
+            TimeTokenizer(),
             InstrumentTokenizer129(),
             SoundEventTokenizer(),
             PitchTokenizer(),
@@ -582,17 +607,17 @@ class Tokenizer3Gtzan:
                 token -= tokenizer.vocab_size
             else:
                 break
-            
+
         return tokenizer.itos(token)
 
     def stoi(self, string):
-        
+
         start_token = 0
 
         for tokenizer in self.tokenizers:
-            
+
             token = tokenizer.stoi(string)
-            
+
             if token is not None:
                 return start_token + token
             else:
@@ -602,9 +627,8 @@ class Tokenizer3Gtzan:
 
 
 def add():
-
     base_tokenizer = BaseTokenizer()
-    
+
     if True:
         time_tokenizer = TimeTokenizer()
         string = time_tokenizer.itos(123)
@@ -621,10 +645,10 @@ def add():
     tokenizer = Tokenizer3Gtzan()
     tokenizer.itos(6100)
 
-    from IPython import embed; embed(using=False); os._exit(0)
-
+    from IPython import embed;
+    embed(using=False);
+    os._exit(0)
 
 
 if __name__ == '__main__':
-
     add()
