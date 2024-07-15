@@ -1,7 +1,7 @@
 import os
 import random
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable, Dict, Optional
 
 import librosa
 import numpy as np
@@ -76,7 +76,7 @@ class MUSDB18HQ(Dataset):
         self.audios_dir = Path(self.root, self.split)
         self.audio_names = sorted(os.listdir(self.audios_dir))
         
-    def __getitem__(self, index):
+    def __getitem__(self, index: int) -> Dict:
 
         source_types = MUSDB18HQ.source_types
         acc_source_types = MUSDB18HQ.acc_source_types
@@ -94,6 +94,7 @@ class MUSDB18HQ(Dataset):
         shared_start_time = random_start_time(audio_path)
 
         data = {
+            "dataset_name": "MUSDB18HQ",
             "audio_path": str(audio_path),
         }
 

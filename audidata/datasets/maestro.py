@@ -96,6 +96,7 @@ class MAESTRO(Dataset):
         # shape: (classes_num,)
 
         full_data = {
+            "dataset_name": "MAESTRO V3.0.0",
             "audio_path": str(audio_path),
             "clip_start_time": clip_start_time,
             "audio": audio,

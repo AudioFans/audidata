@@ -87,6 +87,7 @@ class GTZAN(Dataset):
         # shape: (classes_num,)
 
         full_data = {
+            "dataset_name": "MUSDB18HQ",
             "audio_path": str(audio_path),
             "audio": audio
         }
