@@ -4,13 +4,7 @@ Audidata is a toolkit that allows users to easily load audio datasets in less th
 
 ## 0. Installation
 
-### Method 1. Install via pip
-
-```python
-pip install git+https://github.com/AudioFans/audidata.git@main
-```
-
-### Method 2. Download source code (Recomended for developers)
+### Method 1. Download source code (Recomended for developers)
 
 Download source code allows users to edit and create new features for audidata easily. 
 
@@ -23,6 +17,12 @@ Set environment (for each terminal).
 ```bash
 cd audidata
 export PYTHONPATH=`pwd`  # Export environment path so that users can import audidata anywhere in the terminal.
+```
+
+### Method 2. Install via pip (Developing)
+
+```python
+pip install git+https://github.com/AudioFans/audidata.git@main
 ```
 
 ## 1. Example
