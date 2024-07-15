@@ -1,6 +1,6 @@
 # Audidata
 
-Audidata is a toolkit that allows users to easily load audio datasets in less than 5 minutes. Audidata supports music, audio, and speech datasets. Audidata also provides samplers, tokenizers, and transforms. Users just to need import audidata and load the audio datasets. Users can also create their own datasets inside audidata.
+Audidata is a toolkit that allows users to easily load audio datasets in less than 5 minutes. Audidata supports music, audio, and speech datasets. Audidata also provides samplers, tokenizers, and transforms. Users can also create their own datasets inside audidata.
 
 ## 0. Installation
 
@@ -37,7 +37,7 @@ dataset = GTZAN(root=root, split="train", test_fold=0, sr=16000)
 print(dataset[0])
 ```
 
-Result:
+Output:
 
 <pre>
 {'audio_path': '/datasets/gtzan/genres/blues/blues.00010.au', 
@@ -52,7 +52,8 @@ For more examples please see [audidata/examples](https://github.com/AudioFans/au
 python examples/test_concat_datasets.py
 ```
 
-Result:
+Output:
+
 <pre>
 0 dict_keys(['dataset_name', 'audio_path', 'bass', 'drums', 'other', 'vocals', 'accompaniment', 'mixture'])
 1 dict_keys(['dataset_name', 'audio_path', 'audio', 'target', 'label'])
