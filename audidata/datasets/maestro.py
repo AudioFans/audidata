@@ -9,7 +9,7 @@ from torch.utils.data._utils.collate import default_collate_fn_map
 
 from audidata.io.audio import load, random_start_time
 from audidata.io.midi import notes_to_data, read_single_track_midi
-from audidata.utils.collate import collate_list_fn
+from audidata.collate.base import collate_list_fn
 
 
 default_collate_fn_map.update({list: collate_list_fn})

@@ -1,0 +1,1 @@
+from audidata.io.audio import load

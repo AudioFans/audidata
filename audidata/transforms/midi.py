@@ -3,7 +3,7 @@ from typing import Dict, List
 import librosa
 import numpy as np
 
-from data.tokenizers import BaseTokenizer
+from audidata.tokenizers.base import BaseTokenizer
 
 
 class Note2Token:
