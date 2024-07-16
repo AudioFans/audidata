@@ -1,0 +1,18 @@
+.idea/
+__pycache__/
+
+# Ignore specific types of bytecode files
+*.pyc
+*.pyo
+
+# Ignore other typical Python-related temporary files
+*.log
+*.pot
+*.pid
+*.swp
+*.swo
+*.bak
+*.tmp
+*.coverage
+.cache
+pytest_cache/
