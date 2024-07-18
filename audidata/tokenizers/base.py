@@ -1,7 +1,7 @@
 import bisect
 import itertools
 import re
-from typing import List
+from typing import Any, List, Union
 
 import numpy as np
 
@@ -10,20 +10,19 @@ class BaseTokenizer:
     r"""Base class for all tokenizers.
     """
 
-    def __init__(self, words: str):
+    def __init__(self, words: List[Any]):
         self.words = words
         self.vocab_size = len(self.words)
 
         self.token_to_word = {token: word for token, word in enumerate(self.words)}
         self.word_to_token = {word: token for token, word in enumerate(self.words)}
 
-    def stoi(self, word: str) -> int:
+    def stoi(self, word: Any) -> int:
         r"""String (word) to index.
         """
-        if word in self.words:
-            return self.word_to_token[word]
+        return self.word_to_token.get(word)
         
-    def itos(self, token: int) -> str:
+    def itos(self, token: int) -> Any:
         r"""Index to string (word).
         """
         assert 0 <= token < self.vocab_size
@@ -133,7 +132,12 @@ class ConcatTokenizer:
 
         tokenizer_idx = bisect.bisect_right(self.cumulative_sizes, token)
         tokenizer = self.tokenizers[tokenizer_idx]
-        rel_token = token - self.cumulative_sizes[tokenizer_idx - 1]
+        
+        if tokenizer_idx == 0:
+            rel_token = token
+        else:
+            rel_token = token - self.cumulative_sizes[tokenizer_idx - 1]
+        
         word = tokenizer.itos(rel_token)
 
         return word
