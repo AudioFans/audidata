@@ -6,6 +6,8 @@ from pathlib import Path
 from torch.utils.data import DataLoader
 
 from audidata.datasets import MAESTRO
+from audidata.io.crops import RandomCrop
+from audidata.transforms.midi import PianoRoll
 
 
 if __name__ == '__main__':
@@ -41,7 +43,8 @@ if __name__ == '__main__':
         root=root,
         split="train",
         sr=sr,
-        clip_duration=10.,
+        crop=RandomCrop(clip_duration=10., end_pad=9.9),
+        target_transform=PianoRoll(fps=100, pitches_num=128),
     )
 
     dataloader = DataLoader(
@@ -68,8 +71,7 @@ if __name__ == '__main__':
     print("velocity_roll:", frame_roll.shape)
 
     # Write audio
-    Path("results").mkdir(parents=True, exist_ok=True)
-    out_path = "results/out.wav"
+    out_path = "out.wav"
     soundfile.write(file=out_path, data=audio.T, samplerate=sr)
     print("Write out audio to {}".format(out_path))
 
@@ -85,6 +87,6 @@ if __name__ == '__main__':
     axs[2].matshow(onset_roll.T, origin='lower', aspect='auto', cmap='jet', vmin=0, vmax=1)
     axs[3].matshow(offset_roll.T, origin='lower', aspect='auto', cmap='jet', vmin=0, vmax=1)
     axs[4].matshow(velocity_roll.T, origin='lower', aspect='auto', cmap='jet', vmin=0, vmax=1)
-    fig_path = "results/out.pdf"
+    fig_path = "out.pdf"
     plt.savefig(fig_path)
     print("Write out fig to {}".format(fig_path))

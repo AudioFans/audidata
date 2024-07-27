@@ -1,5 +1,5 @@
 import random
-from typing import Union
+from typing import Optional
 
 import librosa
 import numpy as np
@@ -10,9 +10,9 @@ import torchaudio
 def load(
     path: str, 
     sr: int, 
-    mono: bool = True,
-    offset: float = 0.,  # Load start time
-    duration: Union[float, None] = None  # Load duration
+    offset: float = 0.,  # Load start time (s)
+    duration: Optional[float] = None,  # Load duration (s)
+    mono: bool = False
 ) -> np.ndarray:
     r"""Load audio.
 
@@ -26,18 +26,18 @@ def load(
     # Prepare arguments
     orig_sr = librosa.get_samplerate(path)
 
-    seg_start_sample = round(offset * orig_sr)
+    start_sample = round(offset * orig_sr)
 
-    if duration is None:
-        seg_samples = -1
+    if duration:
+        samples = round(duration * orig_sr)
     else:
-        seg_samples = round(duration * orig_sr)
+        samples = -1
 
     # Load audio
     audio, fs = torchaudio.load(
         path, 
-        frame_offset=seg_start_sample, 
-        num_frames=seg_samples
+        frame_offset=start_sample, 
+        num_frames=samples
     )
     # (channels, audio_samples)
 
@@ -46,20 +46,24 @@ def load(
         waveform=audio, 
         orig_freq=orig_sr, 
         new_freq=sr
-    )
+    ).numpy()
     # shape: (channels, audio_samples)
 
+    if duration:
+        new_samples = round(duration * sr)
+        audio = librosa.util.fix_length(data=audio, size=new_samples, axis=-1)
+
     if mono:
-        audio = torch.mean(audio, dim=0, keepdim=True)
-
-    audio = audio.numpy()
-
+        audio = np.mean(audio, axis=0, keepdims=True)
+    
     return audio
 
 
+'''
 def random_start_time(path: str) -> float:
     r"""Get a random start time of a audio.
     """
     duration = librosa.get_duration(path=path)
     seg_start_time = random.uniform(0, duration - 0.1)
     return seg_start_time
+'''

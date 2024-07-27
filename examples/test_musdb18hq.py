@@ -1,6 +1,7 @@
 from pathlib import Path
 from torch.utils.data import DataLoader
 
+from audidata.io.crops import RandomCrop
 from audidata.datasets import MUSDB18HQ
 
 
@@ -40,8 +41,7 @@ if __name__ == "__main__":
         root=root,
         split="train",
         sr=sr,
-        mono=False,
-        clip_duration=2.,
+        crop=RandomCrop(clip_duration=2., end_pad=0.),
     )
 
     dataloader = DataLoader(dataset=dataset, batch_size=4)

@@ -1,6 +1,6 @@
 import random
 import numpy as np
-from typing import List, Optional
+from typing import Optional
 
 from torch.utils.data import Dataset
 
@@ -12,7 +12,7 @@ class MultiDatasetsBatchSampler:
 
     def __init__(
         self, 
-        datasets: List[Dataset], 
+        datasets: list[Dataset], 
         batch_size: int,
         weights: Optional[np.ndarray] = None  # Probability of datasets to be sampled
     ):
@@ -34,7 +34,7 @@ class MultiDatasetsBatchSampler:
 
         self.datasets_lens = [len(indexes) for indexes in self.indexes_list]
 
-    def __iter__(self) -> List[int]:
+    def __iter__(self) -> list[int]:
         r"""Sample a batch of indexes. First, sample a dataset. Then, sample all 
         batch indexes from the sampled dataset."""
 

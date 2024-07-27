@@ -1,13 +1,14 @@
 import os
 import re
 from pathlib import Path
-from typing import Callable, Dict, Optional, Tuple, Union
-
+from typing import Optional, Union
 import librosa
 import numpy as np
 from torch.utils.data import Dataset
 
 from audidata.io.audio import load
+from audidata.io.crops import StartCrop
+from audidata.transforms.audio import ToMono
 
 
 class GTZAN(Dataset):
@@ -49,50 +50,40 @@ class GTZAN(Dataset):
         split: Union["train", "test"] = "train",
         test_fold: int = 0,  # E.g., fold 0 is used for testing. Fold 1 - 9 are used for training.
         sr: float = 16000,  # Sampling rate
-        clip_duration = 30.,
-        transform: Optional[Callable] = None,
-        target_transform: Optional[Callable] = None
+        crop: Optional[callable] = StartCrop(clip_duration=30.),
+        transform: Optional[callable] = ToMono(),
+        target_transform: Optional[callable] = None
     ) -> None:
     
         self.root = root
         self.split = split
         self.test_fold = test_fold
         self.sr = sr
+        self.crop = crop
         self.transform = transform
         self.target_transform = target_transform
 
-        self.audio_samples = int(clip_duration * self.sr)
-        
         if not Path(root).exists():
             raise "Please download the GTZAN dataset from {} (Invalid anymore. Please search a source)".format(GTZAN.url)
 
         self.meta_dict = self.load_meta()
-        # E.g., meta_dict = {
-        #     "label": ["blues", "disco", ...],
-        #     "audio_name": ["blues.00010.au", "disco00005.au", ...],
-        #     "audio_path": ["path/blues.00010.au", "path/disco00005.au", ...]
-        # }
 
-    def __getitem__(self, index: int) -> Dict:
+    def __getitem__(self, index: int) -> dict:
 
         audio_path = self.meta_dict["audio_path"][index]
         label = self.meta_dict["label"][index]
 
-        # Load audio
-        audio = self.load_audio(path=audio_path)
-        # shape: (channels, audio_samples)
-
-        # Load target
-        target_data = self.load_target(label=label)
-        # shape: (classes_num,)
-
         full_data = {
             "dataset_name": "MUSDB18HQ",
             "audio_path": str(audio_path),
-            "audio": audio
         }
 
-        # Merge dict
+        # Load audio
+        audio_data = self.load_audio(path=audio_path)
+        full_data.update(audio_data)
+
+        # Load target
+        target_data = self.load_target(label=label)
         full_data.update(target_data)
 
         return full_data
@@ -103,7 +94,7 @@ class GTZAN(Dataset):
 
         return audios_num
 
-    def load_meta(self) -> Dict:
+    def load_meta(self) -> dict:
         r"""Load metadata of the GTZAN dataset.
         """
 
@@ -142,7 +133,7 @@ class GTZAN(Dataset):
 
         return meta_dict
 
-    def split_train_test(self, audio_names: list) -> Tuple[list, list]:
+    def split_train_test(self, audio_names: list) -> tuple[list, list]:
 
         train_audio_names = []
         test_audio_names = []
@@ -163,18 +154,34 @@ class GTZAN(Dataset):
 
         return train_audio_names, test_audio_names
 
-    def load_audio(self, path: str) -> np.ndarray:
+    def load_audio(self, path: str) -> dict:
 
-        audio = load(path=path, sr=self.sr)
+        audio_duration = librosa.get_duration(path=path)
+
+        if self.crop:
+            start_time, clip_duration = self.crop(audio_duration=audio_duration)
+        else:
+            start_time = 0.
+            duration = None
+
+        audio = load(
+            path=path, 
+            sr=self.sr, 
+            offset=start_time, 
+            duration=clip_duration
+        )
         # shape: (channels, audio_samples)
 
-        audio = librosa.util.fix_length(data=audio, size=self.audio_samples, axis=-1)
-        # shape: (channels, audio_samples)
+        data = {
+            "audio": audio, 
+            "start_time": start_time,
+            "duration": clip_duration if clip_duration else audio_duration
+        }
 
         if self.transform is not None:
-            audio = self.transform(audio)
+            data = self.transform(data)
 
-        return audio
+        return data
 
     def load_target(self, label: str) -> np.ndarray:
 
@@ -186,15 +193,15 @@ class GTZAN(Dataset):
         target[class_ix] = 1
         # target: (classes_num,)
 
-        target_data = {
+        data = {
             "target": target,
             "label": label
         }
 
         if self.target_transform:
-            target_data = self.target_transform(target_data)
+            data = self.target_transform(data)
 
-        return target_data
+        return data
 
 
 if __name__ == "__main__":
@@ -220,6 +227,7 @@ if __name__ == "__main__":
         
         n = 0
         audio_path = data["audio_path"][n]
+        start_time = data["start_time"][n].cpu().numpy()
         audio = data["audio"][n].cpu().numpy()
         target = data["target"][n].cpu().numpy()
         label = data["label"][n]
@@ -227,6 +235,7 @@ if __name__ == "__main__":
 
     # ------ Visualize ------
     print("audio_path:", audio_path)
+    print("start_time:", start_time)
     print("audio:", audio.shape)
     print("target:", target.shape)
     print("label:", label)

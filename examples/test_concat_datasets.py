@@ -28,8 +28,6 @@ if __name__ == "__main__":
         root=musdb18hq_root,
         split="train",
         sr=sr,
-        mono=False,
-        clip_duration=2.,
     )
     
     dataset_list = [gtzan_dataset, musdb18hq_dataset]
@@ -40,7 +38,8 @@ if __name__ == "__main__":
     # Multiple dataset sampler
     batch_sampler = MultiDatasetsBatchSampler(
         datasets=dataset_list, 
-        batch_size=4
+        batch_size=4,
+        weights=None
     )
 
     # Dataloader
