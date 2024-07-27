@@ -8,7 +8,9 @@ from torch.utils.data import DataLoader
 from audidata.datasets import MAESTRO
 from audidata.tokenizers import (ConcatTokenizer, SpecialTokenizer, NameTokenizer, 
     TimeTokenizer, PitchTokenizer, VelocityTokenizer)
-from audidata.transforms.midi import Note2Token
+from audidata.utils import Compose
+from audidata.io.crops import RandomCrop
+from audidata.transforms.midi import PianoRoll, Note2Token
 from audidata.collate import CollateToken
 
 
@@ -39,8 +41,6 @@ if __name__ == '__main__':
     root = "/datasets/maestro-v3.0.0"
 
     sr = 16000
-    clip_duration = 10.
-    max_tokens = 4096
 
     # Tokenizer. Users may define their own tokenizer
     tokenizer = ConcatTokenizer([
@@ -51,20 +51,18 @@ if __name__ == '__main__':
         VelocityTokenizer()
     ])
 
-    # Target transform. Users may define their own target transform
-    target_transform = Note2Token(
-        clip_duration=clip_duration, 
-        tokenizer=tokenizer, 
-        max_tokens=max_tokens
-    )
+    target_transforms = Compose(callables=[
+        PianoRoll(fps=100, pitches_num=128),
+        Note2Token(tokenizer=tokenizer, max_tokens=4096)
+    ])
 
     # Dataset
     dataset = MAESTRO(
         root=root,
         split="train",
         sr=sr,
-        clip_duration=clip_duration,
-        target_transform=target_transform
+        crop=RandomCrop(clip_duration=10., end_pad=9.9),
+        target_transform=target_transforms,
     )
 
     # Collate. Users may define their own collate

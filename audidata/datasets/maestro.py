@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Callable, Dict, Optional
+from typing import Optional
 
 import librosa
 import numpy as np
@@ -7,8 +7,11 @@ import pandas as pd
 from torch.utils.data import Dataset
 from torch.utils.data._utils.collate import default_collate_fn_map
 
-from audidata.io.audio import load, random_start_time
-from audidata.io.midi import notes_to_data, read_single_track_midi
+from audidata.io.audio import load
+from audidata.io.crops import RandomCrop
+from audidata.transforms.audio import ToMono
+from audidata.transforms.midi import PianoRoll
+from audidata.io.midi import read_single_track_midi
 from audidata.collate.base import collate_list_fn
 
 
@@ -47,63 +50,54 @@ class MAESTRO(Dataset):
     duration = 717232.49  # Dataset duration (s), 199 hours, including training, 
     # validation, and testing.
 
-    pitches_num = 128
-
     def __init__(
         self, 
         root: str, 
         split: str = "train",
         sr: float = 16000,
-        mono: bool = True,
-        clip_duration: float = 10.,
-        fps: int = 100,
+        crop: Optional[callable] = RandomCrop(clip_duration=10., end_pad=9.9),
+        transform: Optional[callable] = ToMono(),
+        target: bool = True,
         extend_pedal: bool = True,
-        transform: Optional[Callable] = None,
-        target_transform: Optional[Callable] = None
+        target_transform: Optional[callable] = PianoRoll(fps=100, pitches_num=128),
     ):
 
         self.root = root
         self.split = split
         self.sr = sr
-        self.mono = mono
-        self.clip_duration = clip_duration
-        self.fps = fps
+        self.crop = crop
+        self.target = target
         self.extend_pedal = extend_pedal
         self.transform = transform
         self.target_transform = target_transform
-
-        self.clip_frames = round(self.clip_duration * self.fps) + 1
-        self.clip_samples = round(self.clip_duration * self.sr)
 
         meta_csv = Path(self.root, "maestro-v3.0.0.csv")
 
         self.meta_dict = self.load_meta(meta_csv)
         
-    def __getitem__(self, index: int) -> Dict:
+    def __getitem__(self, index: int) -> dict:
 
         audio_path = Path(self.root, self.meta_dict["audio_name"][index])
         midi_path = Path(self.root, self.meta_dict["midi_name"][index]) 
         duration = self.meta_dict["duration"][index]
 
-        clip_start_time = random_start_time(audio_path)
-
-        # Load audio
-        audio = self.load_audio(path=audio_path, offset=clip_start_time)
-        # shape: (channels, audio_samples)
-        
-        # Load target
-        target_data = self.load_target(midi_path=midi_path, clip_start_time=clip_start_time)
-        # shape: (classes_num,)
-
         full_data = {
             "dataset_name": "MAESTRO V3.0.0",
             "audio_path": str(audio_path),
-            "clip_start_time": clip_start_time,
-            "audio": audio,
         }
 
-        # Merge dict
-        full_data.update(target_data)
+        # Load audio
+        audio_data = self.load_audio(path=audio_path)
+        full_data.update(audio_data)
+        
+        # Load target
+        if self.target:
+            target_data = self.load_target(
+                midi_path=midi_path, 
+                start_time=audio_data["start_time"],
+                clip_duration=audio_data["duration"]
+            )
+            full_data.update(target_data)
 
         return full_data
 
@@ -113,7 +107,7 @@ class MAESTRO(Dataset):
 
         return audios_num
 
-    def load_meta(self, meta_csv: str) -> Dict:
+    def load_meta(self, meta_csv: str) -> dict:
         r"""Load meta dict.
         """
 
@@ -129,44 +123,58 @@ class MAESTRO(Dataset):
 
         return meta_dict
 
-    def load_audio(self, path: str, offset: float) -> np.ndarray:
+    def load_audio(self, path: str) -> dict:
+
+        audio_duration = librosa.get_duration(path=path)
+        
+        if self.crop:
+            start_time, clip_duration = self.crop(audio_duration=audio_duration)
+        else:
+            start_time = 0.
+            clip_duration = None
 
         audio = load(
-            path,
-            sr=self.sr,
-            mono=self.mono,
-            offset=offset,
-            duration=self.clip_duration
+            path=path, 
+            sr=self.sr, 
+            offset=start_time, 
+            duration=clip_duration
         )
         # shape: (channels, audio_samples)
 
-        audio = librosa.util.fix_length(data=audio, size=self.clip_samples, axis=-1)
-        # shape: (channels, audio_samples)
+        data = {
+            "audio": audio, 
+            "start_time": start_time,
+            "duration": clip_duration if clip_duration else audio_duration
+        }
 
         if self.transform is not None:
-            audio = self.transform(audio)
+            data = self.transform(data)
 
-        return audio
+        return data
 
-    def load_target(self, midi_path: str, clip_start_time: float) -> Dict:
-
-        pitches_num = MAESTRO.pitches_num
-
-        notes, pedals = read_single_track_midi(midi_path=midi_path, extend_pedal=self.extend_pedal)
-
-        target_data = notes_to_data(
-            notes=notes, 
-            clip_frames=self.clip_frames, 
-            classes_num=self.pitches_num, 
-            clip_start_time=clip_start_time, 
-            clip_duration=self.clip_duration, 
-            fps=self.fps
+    def load_target(
+        self, 
+        midi_path: str, 
+        start_time: float, 
+        clip_duration: float
+    ) -> dict:
+        
+        notes, pedals = read_single_track_midi(
+            midi_path=midi_path, 
+            extend_pedal=self.extend_pedal
         )
 
-        if self.target_transform:
-            target_data = self.target_transform(target_data)
+        data = {
+            "note": notes,
+            "pedal": pedals,
+            "start_time": start_time,
+            "clip_duration": clip_duration
+        } 
 
-        return target_data
+        if self.target_transform:
+            data = self.target_transform(data)
+
+        return data
 
 
 if __name__ == '__main__':
@@ -186,7 +194,8 @@ if __name__ == '__main__':
         root=root,
         split="train",
         sr=sr,
-        clip_duration=10.,
+        crop=RandomCrop(clip_duration=10., end_pad=9.9),
+        target_transform=PianoRoll(fps=100, pitches_num=128),
     )
 
     dataloader = DataLoader(

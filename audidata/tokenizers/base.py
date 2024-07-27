@@ -1,7 +1,7 @@
 import bisect
 import itertools
 import re
-from typing import Any, List, Union
+from typing import Any, Union
 
 import numpy as np
 
@@ -10,7 +10,7 @@ class BaseTokenizer:
     r"""Base class for all tokenizers.
     """
 
-    def __init__(self, words: List[Any]):
+    def __init__(self, words: list[Any]):
         self.words = words
         self.vocab_size = len(self.words)
 
@@ -50,7 +50,7 @@ class NameTokenizer(BaseTokenizer):
         super().__init__(words=words)
 
 
-def pad_list(x: List, max_len: int) -> List:
+def pad_list(x: list, max_len: int) -> list:
     assert len(x) <= max_len
     while len(x) < max_len:
         x.append("blank_{}".format(len(x)))

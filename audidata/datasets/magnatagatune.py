@@ -1,14 +1,16 @@
 import os
 import random
 from pathlib import Path
-from typing import Callable, Dict, Optional
+from typing import Optional
 import pandas as pd
 import torch
 import librosa
 import numpy as np
 from torch.utils.data import Dataset
 
-from audidata.io.audio import load, random_start_time
+from audidata.io.audio import load
+from audidata.io.crops import StartCrop
+from audidata.transforms.audio import ToMono
 
 
 class MagnaTagATune(Dataset):
@@ -25,7 +27,8 @@ class MagnaTagATune(Dataset):
 
     url = "https://mirg.city.ac.uk/codeapps/the-magnatagatune-dataset"
 
-    duration = 75708000  # Dataset duration (s), including training, valdiation, and testing
+    duration = 75708000  # Dataset duration (s), 21,050 hours, including 
+    # training, valdiation, and testing
 
     top_50 = [
         "guitar", "classical", "slow", "techno", "strings", "drums", "electronic", "rock", "fast", "piano",
@@ -44,44 +47,37 @@ class MagnaTagATune(Dataset):
             root: str = None,
             split: ["train", "test", "val"] = "train",
             sr: int = 16000,
-            mono: bool = True,
-            clip_duration: float = 29.0,
-            transform: Optional[Callable] = None,
+            crop: Optional[callable] = StartCrop(clip_duration=29.),
+            transform: Optional[callable] = ToMono(),
+            target_transform: Optional[callable] = None
     ):
 
         self.root = root
         self.split = split
         self.sr = sr
-        self.mono = mono
-        self.clip_duration = clip_duration
+        self.crop = crop
         self.transform = transform
-
-        self.clip_samples = round(self.clip_duration * self.sr)
-        self.audio_samples = int(clip_duration * self.sr)
+        self.target_transform = target_transform
 
         meta_csv = Path(self.root, "annotations_final.csv")
         self.meta_dict = self.load_meta(meta_csv)
 
-    def __getitem__(self, index: int) -> Dict:
+    def __getitem__(self, index: int) -> dict:
 
         audio_path = self.meta_dict["audio_path"][index]
         labels = self.meta_dict["labels"][index]
 
-        # Load audio
-        audio = self.load_audio(path=audio_path)
-        # shape: (channels, audio_samples)
-
-        # Load target
-        target_data = self.load_target(labels=labels)
-        # shape: (classes_num,)
-
         full_data = {
             "dataset_name": "MagnaTagATune",
             "audio_path": str(audio_path),
-            "audio": audio
         }
 
-        # Merge dict
+        # Load audio
+        audio_data = self.load_audio(path=audio_path)
+        full_data.update(audio_data)
+
+        # Load target
+        target_data = self.load_target(labels=labels)
         full_data.update(target_data)
 
         return full_data
@@ -92,7 +88,7 @@ class MagnaTagATune(Dataset):
 
         return audios_num
 
-    def load_meta(self, meta_csv) -> Dict:
+    def load_meta(self, meta_csv) -> dict:
         r"""Load metadata of the MagnaTagATune dataset."""
         top_50 = MagnaTagATune.top_50
         meta_dict = {
@@ -138,18 +134,34 @@ class MagnaTagATune(Dataset):
 
         return meta_dict
 
-    def load_audio(self, path: str) -> np.ndarray:
+    def load_audio(self, path: str) -> dict:
 
-        audio = load(path=path, sr=self.sr)
+        audio_duration = librosa.get_duration(path=path)
+
+        if self.crop:
+            start_time, clip_duration = self.crop(audio_duration=audio_duration)
+        else:
+            start_time = 0.
+            duration = None
+
+        audio = load(
+            path=path, 
+            sr=self.sr, 
+            offset=start_time, 
+            duration=clip_duration
+        )
         # shape: (channels, audio_samples)
 
-        audio = librosa.util.fix_length(data=audio, size=self.audio_samples, axis=-1)
-        # shape: (channels, audio_samples)
+        data = {
+            "audio": audio, 
+            "start_time": start_time,
+            "duration": clip_duration if clip_duration else audio_duration
+        }
 
         if self.transform is not None:
-            audio = self.transform(audio)
+            data = self.transform(data)
 
-        return audio
+        return data
 
     def load_target(self, labels: list[str]) -> dict:
         classes_num = MagnaTagATune.classes_num
@@ -159,12 +171,12 @@ class MagnaTagATune(Dataset):
 
         target[[lb_to_ix[label] for label in labels]] = 1
 
-        target_data = {
+        data = {
             "target": target,
             "labels": labels
         }
 
-        return target_data
+        return data
 
 
 if __name__ == "__main__":
@@ -188,6 +200,7 @@ if __name__ == "__main__":
     for data in dataloader:
         n = 0
         audio_path = data["audio_path"][n]
+        start_time = data["start_time"][n].cpu().numpy()
         audio = data["audio"][n].cpu().numpy()
         target = data["target"][n].cpu().numpy()
         label = data["labels"][n]
@@ -195,6 +208,7 @@ if __name__ == "__main__":
 
     # ------ Visualize ------
     print("audio_path:", audio_path)
+    print("start_time:", start_time)
     print("audio:", audio.shape)
     print("target:", target.shape)
     print("label:", label)

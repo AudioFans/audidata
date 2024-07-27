@@ -1,4 +1,3 @@
-from typing import Dict, List
 from torch.utils.data._utils.collate import default_collate_fn_map, collate
 
 
@@ -13,13 +12,13 @@ class CollateToken:
 
         default_collate_fn_map.update({list: collate_list_fn})
 
-    def __call__(self, batch: List) -> Dict:        
+    def __call__(self, batch: list) -> dict:
         
         batch = collate(batch=batch, collate_fn_map=default_collate_fn_map)
 
         # Shorten sequence length
-        max_tokens = batch["token"].max().item()
+        max_tokens = batch["tokens_num"].max().item()
         batch["token"] = batch["token"][:, 0 : max_tokens]
         batch["mask"] = batch["mask"][:, 0 : max_tokens]
-
+        
         return batch
