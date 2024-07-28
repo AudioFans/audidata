@@ -170,6 +170,32 @@ def shutterstock():
     from IPython import embed; embed(using=False); os._exit(0)
 
 
+def slakh2100():
+
+    root = "/datasets/slakh2100_flac"
+
+    audio_paths = sorted(list(Path(root).rglob("mix.flac")))
+
+    durations = []
+    sample_rates = []
+
+    for audio_path in audio_paths:
+
+        duration = librosa.get_duration(path=audio_path)
+        durations.append(duration)
+
+        sr = librosa.get_samplerate(path=audio_path)
+        sample_rates.append(sr)
+
+    print("------ Slakh2100 ------")
+    print("Files num: {}".format(len(durations)))
+    print("Duration: {:.2f} s".format(np.sum(durations)))
+
+    fig_path = "results/slakh2100.pdf"
+    plot_histogram(durations=durations, title="Slakh2100", fig_path=fig_path)
+    from IPython import embed; embed(using=False); os._exit(0)
+
+
 def plot_histogram(durations: list[float], title: str, fig_path: str):
     
     plt.figure()
@@ -194,4 +220,5 @@ if __name__ == '__main__':
     # clotho()
     # audiocaps()
     # wavcaps()
-    shutterstock()
+    # shutterstock()
+    slakh2100() 
