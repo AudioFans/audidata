@@ -1,7 +1,7 @@
 # This file is modified from https://github.com/MorenoLaQuatra/ARCH/blob/main/data_download/download_data.sh
 
 ROOT="/datasets" # replace with the directory where you want to store the data
-ROOT="/home/jiahelei/DATASETS/TEST"
+
 mkdir -p ${ROOT}
 
 cd ${ROOT}
@@ -51,3 +51,13 @@ rm Medley-solos-DB.tar.gz
 
 echo "MedleyDB dataset downloaded successfully."
 cd ${ROOT}
+
+
+# -------------------------- ESC-50 --------------------------
+echo "Downloading ESC-50 dataset..."
+
+wget -c https://github.com/karoldvl/ESC-50/archive/master.zip
+
+unzip master.zip
+rm master.zip
+mv ESC-50-master esc50

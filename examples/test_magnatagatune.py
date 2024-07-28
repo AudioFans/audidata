@@ -6,8 +6,6 @@ if __name__ == "__main__":
     r"""Example.
     """
 
-    from torch.utils.data import DataLoader
-
     root = "/datasets/magnatagatune"
 
     sr = 16000
