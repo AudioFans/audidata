@@ -3,6 +3,7 @@ import random
 import librosa
 import soundfile as sf
 
+
 class ToMono:
     r"""Converts multi-channel audio to mono by averaging all channels.
 
@@ -23,64 +24,6 @@ class ToMono:
         data["audio"] = np.mean(data["audio"], axis=0, keepdims=True)
         return data
 
-class StartCrop:
-    r"""Crops the audio from the start to a specified duration.
-
-    This transformation takes an audio input and crops it from the beginning
-    to a specified duration.
-
-    Args:
-        clip_duration (float): The duration of the cropped audio in seconds.
-        sr (int): The sampling rate of the audio.
-
-    Returns:
-        dict: A dictionary containing the cropped audio under the key 'audio'.
-    """
-
-    def __init__(self, clip_duration: float, sr: int):
-        self.clip_samples = round(clip_duration * sr)
-
-    def __call__(self, data: dict) -> dict:
-        x = data["audio"]
-        clip = librosa.util.fix_length(
-            data=x[..., 0 : self.clip_samples], 
-            size=self.clip_samples, 
-            axis=-1
-        )
-        data["audio"] = clip
-        return data
-
-class RandomCrop:
-    r"""Randomly crops the audio to a specified duration.
-
-    This transformation takes an audio input and crops it to a specified duration
-    starting from a random position.
-
-    Args:
-        clip_duration (float): The duration of the cropped audio in seconds.
-        sr (int): The sampling rate of the audio.
-
-    Returns:
-        dict: A dictionary containing the randomly cropped audio under the key 'audio'.
-    """
-
-    def __init__(self, clip_duration: float, sr: int):
-        self.clip_samples = round(clip_duration * sr)
-
-    def __call__(self, data: dict) -> dict:
-        x = data["audio"]
-        len_x = x.shape[-1]
-        if len_x < self.clip_samples:
-            start_sample = 0
-        else:
-            start_sample = random.randint(0, len_x - self.clip_samples)
-        clip = librosa.util.fix_length(
-            data=x[..., start_sample : start_sample + self.clip_samples], 
-            size=self.clip_samples, 
-            axis=-1
-        )
-        data["audio"] = clip
-        return data
 
 class Normalize:
     r"""Normalizes the audio to have a maximum absolute value of 1.
@@ -102,6 +45,7 @@ class Normalize:
         audio = audio / np.max(np.abs(audio))
         data["audio"] = audio
         return data
+
 
 class PitchShift:
     r"""Applies pitch shifting to the audio.
@@ -126,6 +70,7 @@ class PitchShift:
         data["audio"] = shifted
         return data
 
+
 class TimeStretch:
     r"""Applies time stretching to the audio.
 
@@ -147,6 +92,7 @@ class TimeStretch:
         stretched = np.apply_along_axis(lambda x: librosa.effects.time_stretch(x, rate=self.rate), axis=-1, arr=audio)
         data["audio"] = stretched
         return data
+
 
 class AddGaussianNoise:
     r"""Adds Gaussian noise to the audio.
@@ -170,6 +116,7 @@ class AddGaussianNoise:
         data["audio"] = noisy_audio
         return data
 
+
 class RandomGain:
     r"""Applies random gain to the audio.
 
@@ -192,6 +139,7 @@ class RandomGain:
         gain = random.uniform(self.min_gain, self.max_gain)
         data["audio"] = audio * gain
         return data
+
 
 class RandomImpulseReverb:
     r"""Applies random impulse reverb to the audio.
@@ -235,6 +183,7 @@ class RandomImpulseReverb:
         mixed_audio = (1 - self.mix_ratio) * audio + self.mix_ratio * reverb_audio
         return mixed_audio
 
+
 def test_transformations(audio_path):
     r"""
     Testing function.
@@ -246,8 +195,6 @@ def test_transformations(audio_path):
     
     augmentations = [
         ToMono(),
-        StartCrop(clip_duration=1.0, sr=sr),
-        RandomCrop(clip_duration=1.0, sr=sr),
         Normalize(),
         PitchShift(n_steps=2, sr=sr),
         TimeStretch(rate=0.5),
@@ -262,6 +209,7 @@ def test_transformations(audio_path):
         output_filename = f"augmented_{aug.__class__.__name__}.wav"
 
         sf.write(output_filename, aug_audio.T, sr)
+
 
 if __name__ == "__main__":
     test_transformations("test.m4a")  # Provide path to an audio file for testing all transformations

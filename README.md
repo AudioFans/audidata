@@ -4,6 +4,8 @@ Audidata is a toolkit that allows users to easily load audio datasets in less th
 
 ## 0. Installation
 
+python >= 3.9 is required.
+
 ### Method 1. Download source code (Recomended for developers)
 
 Download source code allows users to edit and create new features for audidata easily. 
