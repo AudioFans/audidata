@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 
 from audidata.datasets import Slakh2100 
 from audidata.tokenizers import (ConcatTokenizer, SpecialTokenizer, NameTokenizer, 
-    TimeTokenizer, PitchTokenizer, VelocityTokenizer, ProgramTokenizer)
+    TimeTokenizer, PitchTokenizer, VelocityTokenizer, ProgramTokenizer, DrumTokenizer)
 from audidata.utils import Compose
 from audidata.io.crops import RandomCrop
 from audidata.transforms.midi import MultiTrackNote2Token
@@ -24,6 +24,7 @@ if __name__ == '__main__':
         NameTokenizer(),
         TimeTokenizer(),
         PitchTokenizer(),
+        DrumTokenizer(),
         VelocityTokenizer(),
         ProgramTokenizer()
     ])

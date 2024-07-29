@@ -93,7 +93,14 @@ class VelocityTokenizer(BaseTokenizer):
         words = ["velocity={}".format(pitch) for pitch in range(classes_num)]
 
         super().__init__(words=words)
+        
+class DrumTokenizer(BaseTokenizer):
+    def __init__(self, classes_num=128):
+        
+        words = ["drum_pitch={}".format(pitch) for pitch in range(classes_num)]
 
+        super().__init__(words=words)
+        
 
 class ConcatTokenizer:
     def __init__(self, tokenizers, verbose=False):
@@ -166,7 +173,6 @@ class ProgramTokenizer(BaseTokenizer):
         return "program=0"
 
 
-
 if __name__ == '__main__':
     r"""Example.
     """
@@ -176,8 +182,9 @@ if __name__ == '__main__':
         NameTokenizer(),
         TimeTokenizer(),
         PitchTokenizer(),
+        DrumTokenizer(),
         VelocityTokenizer(),
-        ProgramTokenizer()
+        ProgramTokenizer(),
     ])
 
     token = tokenizer.stoi("name=note_on")
@@ -197,5 +204,9 @@ if __name__ == '__main__':
     print(token, word)
 
     token = tokenizer.stoi("program=34")
+    word = tokenizer.itos(token)
+    print(token, word)
+    
+    token = tokenizer.stoi("drum_pitch=34")
     word = tokenizer.itos(token)
     print(token, word)

@@ -204,7 +204,9 @@ class Slakh2100(Dataset):
                 "clip_duration": clip_duration
             }
 
-        data["tracks"].append(tmp)
+            data["tracks"].append(tmp)
+        data["start_time"] = start_time
+        data["clip_duration"] = clip_duration
 
         if self.target_transform:
             data = self.target_transform(data)
