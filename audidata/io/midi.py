@@ -42,6 +42,35 @@ def read_single_track_midi(
 
     return notes, pedals
 
+def read_multi_track_midi(midi_path: str) -> list[dict]:
+    r"""Read notes from a multi-track MIDI file.
+    Did not implement extend_pedal here. TODO: future work
+
+    Returns:
+        data: list[dict]
+    """
+
+    midi_data = PrettyMIDI(str(midi_path))
+    
+    data = []
+
+    for instrument in midi_data.instruments:
+
+        notes = instrument.notes
+        control_changes = instrument.control_changes
+
+        # Get pedals
+        pedals = get_pedals(control_changes)
+
+        data.append({
+            "notes": notes,
+            "pedals": pedals,
+            "program": instrument.program,
+            "is_drum": instrument.is_drum
+        })
+
+    return data
+
 
 def get_pedals(control_changes: list[ControlChange]) -> list[Pedal]:
     r"""Get list of pedal events."""
