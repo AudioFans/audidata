@@ -141,6 +141,30 @@ class ConcatTokenizer:
         word = tokenizer.itos(rel_token)
 
         return word
+    
+class ProgramTokenizer(BaseTokenizer):
+    def __init__(self):
+        words = [f"program={i}" for i in range(128)]
+        super().__init__(words=words)
+
+    def stoi(self, word: Union[str, int]) -> int:
+        if isinstance(word, int):
+            if 0 <= word < 128:
+                return word
+        elif isinstance(word, str) and word.startswith("program="):
+            try:
+                program = int(word.split("=")[1])
+                if 0 <= program < 128:
+                    return program
+            except ValueError:
+                pass
+        return self.word_to_token.get("<unk>", 0)  # Default to 0 (Piano). TODO: discuss
+
+    def itos(self, token: int) -> str:
+        if 0 <= token < 128:
+            return f"program={token}"
+        return "program=0"
+
 
 
 if __name__ == '__main__':
@@ -152,7 +176,8 @@ if __name__ == '__main__':
         NameTokenizer(),
         TimeTokenizer(),
         PitchTokenizer(),
-        VelocityTokenizer()
+        VelocityTokenizer(),
+        ProgramTokenizer()
     ])
 
     token = tokenizer.stoi("name=note_on")
@@ -168,5 +193,9 @@ if __name__ == '__main__':
     print(token, word)
 
     token = tokenizer.stoi("velocity=34")
+    word = tokenizer.itos(token)
+    print(token, word)
+
+    token = tokenizer.stoi("program=34")
     word = tokenizer.itos(token)
     print(token, word)
