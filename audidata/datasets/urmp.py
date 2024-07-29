@@ -4,14 +4,15 @@ from typing import Optional
 import librosa
 import numpy as np
 import pandas as pd
+import os
 from torch.utils.data import Dataset
 from torch.utils.data._utils.collate import default_collate_fn_map
 
 from audidata.io.audio import load
 from audidata.io.crops import RandomCrop
 from audidata.transforms.audio import ToMono
-from audidata.transforms.midi import PianoRoll
-from audidata.io.midi import read_single_track_midi
+from audidata.transforms.midi import MultiTrackPianoRoll
+from audidata.io.midi import read_multi_track_midi
 from audidata.collate.base import collate_list_fn
 
 
@@ -46,76 +47,67 @@ class URMP(Dataset):
     duration = 21355.7  # Dataset duration (s) - 5 hours 55 minutes 55.7 seconds
 
     def __init__(
-        self, 
-        root: str, 
+        self,
+        root: str,
         split: str = "train",
-        sr: float = 16000,
-        crop: Optional[callable] = RandomCrop(clip_duration=10., end_pad=9.9),
+        sr: int = 44100,
+        crop: Optional[callable] = RandomCrop(clip_duration=10.),
         transform: Optional[callable] = ToMono(),
         target: bool = True,
-        target_transform: Optional[callable] = PianoRoll(fps=100, pitches_num=128),
+        target_transform: Optional[callable] = MultiTrackPianoRoll(fps=100, pitches_num=128),
     ):
-
-        self.root = root
+        self.root = Path(root)
         self.split = split
         self.sr = sr
         self.crop = crop
-        self.target = target
-        self.extend_pedal = extend_pedal
         self.transform = transform
+        self.target = target
         self.target_transform = target_transform
 
-        self.meta_dict = self.load_meta(meta_csv)
-        
+        self.pieces = sorted([d for d in os.listdir(self.root) if d.startswith(("0", "1", "2", "3", "4"))]) # 01-44
+
     def __getitem__(self, index: int) -> dict:
-
-        # TODO
+        piece_dir = self.root / self.pieces[index]
         
-        audio_data = self.load_audio(path=audio_path)
-        full_data.update(audio_data)
+        mix_file = next(piece_dir.glob("AuMix_*.wav"))
+        stem_files = sorted(piece_dir.glob("AuSep_*.wav"))
         
-        # Load target
-        if self.target:
-            target_data = self.load_target(
-                midi_path=midi_path, 
-                start_time=audio_data["start_time"],
-                clip_duration=audio_data["duration"]
-            )
-            full_data.update(target_data)
+        midi_file = next(piece_dir.glob("Sco_*.mid"))
 
-        return full_data
-
-    def __len__(self):
-
-        audios_num = len(self.meta_dict["audio_name"])
-
-        return audios_num
-
-    def load_meta(self, meta_csv: str) -> dict:
-        r"""Load meta dict.
-        """
-
-        df = pd.read_csv(meta_csv, sep=',')
-
-        indexes = df["split"].values == self.split
-
-        meta_dict = {
-            "midi_name": df["midi_filename"].values[indexes],
-            "audio_name": df["audio_filename"].values[indexes],
-            "duration": df["duration"].values[indexes]
+        mix_audio = self.load_audio(mix_file)
+        
+        data = {
+            "dataset_name": "URMP",
+            "piece_name": self.pieces[index],
+            "mix": mix_audio["audio"],
+            "start_time": mix_audio["start_time"],
+            "duration": mix_audio["duration"],
         }
 
-        return meta_dict
+        data["stems"] = []
+        data["instruments"] = []
+        for stem_file in stem_files:
+            stem_audio = self.load_audio(stem_file, start_time=mix_audio["start_time"], duration=mix_audio["duration"])
+            instrument = stem_file.stem.split("_")[2]
+            data["stems"].append(stem_audio["audio"])
+            data["instruments"].append(instrument)
 
-    def load_audio(self, path: str) -> dict:
+        if self.target:
+            midi_data = self.load_midi(midi_file, start_time=mix_audio["start_time"], clip_duration=mix_audio["duration"])
+            data.update(midi_data)
 
+        return data
+
+    def __len__(self):
+        return len(self.pieces)
+
+    def load_audio(self, path: str, start_time: float = None, duration: float = None) -> dict:
         audio_duration = librosa.get_duration(path=path)
         
-        if self.crop:
+        if self.crop and start_time is None:
             start_time, clip_duration = self.crop(audio_duration=audio_duration)
         else:
-            start_time = 0.
-            clip_duration = None
+            clip_duration = duration
 
         audio = load(
             path=path, 
@@ -123,7 +115,6 @@ class URMP(Dataset):
             offset=start_time, 
             duration=clip_duration
         )
-        # shape: (channels, audio_samples)
 
         data = {
             "audio": audio, 
@@ -136,92 +127,65 @@ class URMP(Dataset):
 
         return data
 
-    def load_target(
-        self, 
-        midi_path: str, 
-        start_time: float, 
-        clip_duration: float
-    ) -> dict:
-        
-        notes, pedals = read_single_track_midi(
-            midi_path=midi_path, 
-            extend_pedal=self.extend_pedal
-        )
+    def load_midi(self, midi_path: str, start_time: float, clip_duration: float) -> dict:
+        midi_data = read_multi_track_midi(midi_path=midi_path)
 
         data = {
-            "note": notes,
-            "pedal": pedals,
+            "tracks": [],
             "start_time": start_time,
             "clip_duration": clip_duration
-        } 
+        }
 
-        if self.target_transform:
-            data = self.target_transform(data)
+        for track in midi_data:
+            track_data = {
+                "program": track["program"],
+                "is_drum": track["is_drum"],
+                "notes": track["notes"],
+                "start_time": start_time,
+                "clip_duration": clip_duration
+            }
+            data["tracks"].append(track_data)
 
         return data
 
 
-if __name__ == '__main__':
-    r"""Example.
-    """
-
+if __name__ == "__main__":
     import matplotlib.pyplot as plt
     import soundfile
     from torch.utils.data import DataLoader
 
-    root = "/datasets/maestro-v3.0.0"
+    root = "/root/Dataset"
 
-    sr = 16000
+    sr = 44100
 
-    # Dataset
-    dataset = MAESTRO(
+    dataset = URMP(
         root=root,
         split="train",
         sr=sr,
-        crop=RandomCrop(clip_duration=10., end_pad=9.9),
-        target_transform=PianoRoll(fps=100, pitches_num=128),
+        crop=RandomCrop(clip_duration=10., end_pad=0.),
     )
 
-    dataloader = DataLoader(
-        dataset=dataset, 
-        batch_size=4, 
-        num_workers=0, 
-    )
+    dataloader = DataLoader(dataset=dataset, batch_size=1, shuffle=True)
 
     for data in dataloader:
+        piece_name = data["piece_name"][0]
+        mix = data["mix"][0].numpy()
+        start_time = data["start_time"][0].item()
+        duration = data["duration"][0].item()
 
-        n = 0
-        audio = data["audio"][n].cpu().numpy()
-        frame_roll = data["frame_roll"][n].cpu().numpy()
-        onset_roll = data["onset_roll"][n].cpu().numpy()
-        offset_roll = data["offset_roll"][n].cpu().numpy()
-        velocity_roll = data["velocity_roll"][n].cpu().numpy()
-        break
+        print(f"Piece: {piece_name}")
+        print(f"Mix shape: {mix.shape}")
+        print(f"Start time: {start_time}")
+        print(f"Duration: {duration}")
+        
+        instrument_ids = [f"{i + 1}: {instrument}" for i, instrument in enumerate(data["instruments"][0])]
 
-    # ------ Visualize ------
-    print("audio:", audio.shape)
-    print("frame_roll:", frame_roll.shape)
-    print("onset_roll:", frame_roll.shape)
-    print("offset_roll:", frame_roll.shape)
-    print("velocity_roll:", frame_roll.shape)
+        for stem, instrument in zip(data["stems"][0], data["instruments"][0]):
+            print(f"Stem ({instrument}) shape: {stem.shape}")
 
-    # Write audio
-    out_path = "out.wav"
-    soundfile.write(file=out_path, data=audio.T, samplerate=sr)
-    print("Write out audio to {}".format(out_path))
+        if "tracks" in data:
+            for i, track in enumerate(data["tracks"][0]):
+                print(f"MIDI Track {instrument_ids[i]}")
+                print(f"  Notes: {len(track['notes'])}")
 
-    # Mel spectrogram
-    mel = librosa.feature.melspectrogram(y=audio[0], sr=sr, n_fft=2048, 
-        hop_length=160, n_mels=229, fmin=0, fmax=8000)
-
-    # Plot
-    fig, axs = plt.subplots(5, 1, sharex=True, figsize=(20, 15))
-    axs[0].matshow(np.log(mel), origin='lower', aspect='auto', cmap='jet')
-    axs[1].matshow(frame_roll.T, origin='lower', aspect='auto', cmap='jet', vmin=0, vmax=1)
-    axs[1].matshow(frame_roll.T, origin='lower', aspect='auto', cmap='jet', vmin=0, vmax=1)
-    axs[2].matshow(onset_roll.T, origin='lower', aspect='auto', cmap='jet', vmin=0, vmax=1)
-    axs[3].matshow(offset_roll.T, origin='lower', aspect='auto', cmap='jet', vmin=0, vmax=1)
-    axs[4].matshow(velocity_roll.T, origin='lower', aspect='auto', cmap='jet', vmin=0, vmax=1)
-    fig_path = "out.pdf"
-    plt.savefig(fig_path)
-    print("Write out fig to {}".format(fig_path))
+        break  # Process only the first item in the dataset
