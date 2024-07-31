@@ -8,3 +8,5 @@ from audidata.datasets.wavcaps import WavCaps
 from audidata.datasets.shutterstock import Shutterstock
 from audidata.datasets.esc50 import ESC50
 from audidata.datasets.slakh2100 import Slakh2100
+from audidata.datasets.urmp import URMP
+from audidata.datasets.gmd import GMD
