@@ -91,14 +91,14 @@ if __name__ == '__main__':
 
     for data in dataloader:
         n = 0
-        audio = data["audio"][n].cpu().numpy()
-        frame_roll = data["frame_roll"][n].cpu().numpy()
-        onset_roll = data["onset_roll"][n].cpu().numpy()
-        offset_roll = data["offset_roll"][n].cpu().numpy()
-        velocity_roll = data["velocity_roll"][n].cpu().numpy()
-        tokens = data["token"][n]
-        masks = data["mask"][n].cpu().numpy()
-        tokens_num = data["tokens_num"][n].cpu().numpy()
+        audio = data["audio"].cpu().numpy()
+        frame_roll = data["frame_roll"].cpu().numpy()
+        onset_roll = data["onset_roll"].cpu().numpy()
+        offset_roll = data["offset_roll"].cpu().numpy()
+        velocity_roll = data["velocity_roll"].cpu().numpy()
+        tokens = data["token"]
+        masks = data["mask"].cpu().numpy()
+        tokens_num = data["tokens_num"].cpu().numpy()
         break
 
     # ------ Visualize ------
@@ -108,6 +108,8 @@ if __name__ == '__main__':
     print("offset_roll:", frame_roll.shape)
     print("velocity_roll:", frame_roll.shape)
     print("tokens:", tokens)
+    for key in tokens:
+        print(key, tokens[key].shape)
     print("masks:", masks)
     print("tokens_num:", tokens_num)
     print("vocab sizes: ", tokenizer.get_vocab_sizes())

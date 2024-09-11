@@ -49,4 +49,7 @@ class CollateDictToken:
                 token_dict[key] = torch.LongTensor(token_dict[key])
             batch["token"][i] = token_dict
         
+        token_dict = {key: torch.stack([element[key] for element in batch["token"]], dim=0) for key in all_keys}
+        batch["token"] = token_dict
+        
         return batch
