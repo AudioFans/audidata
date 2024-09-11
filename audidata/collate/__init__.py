@@ -1,1 +1,1 @@
-from audidata.collate.base import collate_list_fn, CollateToken
+from audidata.collate.base import collate_list_fn, CollateToken, CollateDictToken

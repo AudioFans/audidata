@@ -7,11 +7,11 @@ from torch.utils.data import DataLoader
 
 from audidata.datasets import MAESTRO
 from audidata.tokenizers import (ConcatTokenizer, SpecialTokenizer, NameTokenizer, 
-    TimeTokenizer, PitchTokenizer, VelocityTokenizer)
+    TimeTokenizer, PitchTokenizer, VelocityTokenizer, DictTokenizer)
 from audidata.utils import Compose
 from audidata.io.crops import RandomCrop
-from audidata.transforms.midi import PianoRoll, Note2Token
-from audidata.collate import CollateToken
+from audidata.transforms.midi import PianoRoll, Note2Token, Note2DictToken
+from audidata.collate import CollateToken, CollateDictToken
 
 
 if __name__ == '__main__':
@@ -38,22 +38,35 @@ if __name__ == '__main__':
         └── README
     """
 
-    root = "/datasets/maestro-v3.0.0"
+    root = "/root/maestro-v3.0.0"
 
     sr = 16000
 
     # Tokenizer. Users may define their own tokenizer
-    tokenizer = ConcatTokenizer([
-        SpecialTokenizer(),
-        NameTokenizer(),
-        TimeTokenizer(),
-        PitchTokenizer(),
-        VelocityTokenizer()
-    ])
+    # tokenizer = ConcatTokenizer([
+    #     SpecialTokenizer(),
+    #     NameTokenizer(),
+    #     TimeTokenizer(),
+    #     PitchTokenizer(),
+    #     VelocityTokenizer()
+    # ])
+    tokenizer = DictTokenizer({
+        "special": SpecialTokenizer(),
+        "onset": ConcatTokenizer([
+            TimeTokenizer(max_duration=10.),
+            NameTokenizer(),
+        ]),
+        "pitch": PitchTokenizer(),
+        "velocity": VelocityTokenizer(),
+        "offset": ConcatTokenizer([
+            TimeTokenizer(max_duration=10.),
+            NameTokenizer(),
+        ]),
+    })
 
     target_transforms = Compose(callables=[
         PianoRoll(fps=100, pitches_num=128),
-        Note2Token(tokenizer=tokenizer, max_tokens=4096)
+        Note2DictToken(tokenizer=tokenizer, max_tokens=4096)
     ])
 
     # Dataset
@@ -66,7 +79,7 @@ if __name__ == '__main__':
     )
 
     # Collate. Users may define their own collate
-    collate_fn = CollateToken()
+    collate_fn = CollateDictToken()
 
     # Dataloader
     dataloader = DataLoader(
@@ -77,14 +90,13 @@ if __name__ == '__main__':
     )
 
     for data in dataloader:
-
         n = 0
         audio = data["audio"][n].cpu().numpy()
         frame_roll = data["frame_roll"][n].cpu().numpy()
         onset_roll = data["onset_roll"][n].cpu().numpy()
         offset_roll = data["offset_roll"][n].cpu().numpy()
         velocity_roll = data["velocity_roll"][n].cpu().numpy()
-        tokens = data["token"][n].cpu().numpy()
+        tokens = data["token"][n]
         masks = data["mask"][n].cpu().numpy()
         tokens_num = data["tokens_num"][n].cpu().numpy()
         break
@@ -98,25 +110,26 @@ if __name__ == '__main__':
     print("tokens:", tokens)
     print("masks:", masks)
     print("tokens_num:", tokens_num)
+    print("vocab sizes: ", tokenizer.get_vocab_sizes())
 
-    # Write audio
-    Path("results").mkdir(parents=True, exist_ok=True)
-    out_path = "results/out.wav"
-    soundfile.write(file=out_path, data=audio.T, samplerate=sr)
-    print("Write out audio to {}".format(out_path))
+    # # Write audio
+    # Path("results").mkdir(parents=True, exist_ok=True)
+    # out_path = "results/out.wav"
+    # soundfile.write(file=out_path, data=audio.T, samplerate=sr)
+    # print("Write out audio to {}".format(out_path))
 
-    # Mel spectrogram
-    mel = librosa.feature.melspectrogram(y=audio[0], sr=sr, n_fft=2048, 
-        hop_length=160, n_mels=229, fmin=0, fmax=8000)
+    # # Mel spectrogram
+    # mel = librosa.feature.melspectrogram(y=audio[0], sr=sr, n_fft=2048, 
+    #     hop_length=160, n_mels=229, fmin=0, fmax=8000)
 
-    # Plot
-    fig, axs = plt.subplots(5, 1, sharex=True, figsize=(20, 15))
-    axs[0].matshow(np.log(mel), origin='lower', aspect='auto', cmap='jet')
-    axs[1].matshow(frame_roll.T, origin='lower', aspect='auto', cmap='jet', vmin=0, vmax=1)
-    axs[1].matshow(frame_roll.T, origin='lower', aspect='auto', cmap='jet', vmin=0, vmax=1)
-    axs[2].matshow(onset_roll.T, origin='lower', aspect='auto', cmap='jet', vmin=0, vmax=1)
-    axs[3].matshow(offset_roll.T, origin='lower', aspect='auto', cmap='jet', vmin=0, vmax=1)
-    axs[4].matshow(velocity_roll.T, origin='lower', aspect='auto', cmap='jet', vmin=0, vmax=1)
-    fig_path = "results/out.pdf"
-    plt.savefig(fig_path)
-    print("Write out fig to {}".format(fig_path))
+    # # Plot
+    # fig, axs = plt.subplots(5, 1, sharex=True, figsize=(20, 15))
+    # axs[0].matshow(np.log(mel), origin='lower', aspect='auto', cmap='jet')
+    # axs[1].matshow(frame_roll.T, origin='lower', aspect='auto', cmap='jet', vmin=0, vmax=1)
+    # axs[1].matshow(frame_roll.T, origin='lower', aspect='auto', cmap='jet', vmin=0, vmax=1)
+    # axs[2].matshow(onset_roll.T, origin='lower', aspect='auto', cmap='jet', vmin=0, vmax=1)
+    # axs[3].matshow(offset_roll.T, origin='lower', aspect='auto', cmap='jet', vmin=0, vmax=1)
+    # axs[4].matshow(velocity_roll.T, origin='lower', aspect='auto', cmap='jet', vmin=0, vmax=1)
+    # fig_path = "results/out.pdf"
+    # plt.savefig(fig_path)
+    # print("Write out fig to {}".format(fig_path))

@@ -3,7 +3,7 @@ import librosa
 import numpy as np
 from pretty_midi import Note
 
-from audidata.tokenizers.base import BaseTokenizer
+from audidata.tokenizers.base import BaseTokenizer, DictTokenizer
 
 
 class PianoRoll:
@@ -398,5 +398,86 @@ class MultiTrackNote2Token:
         data["token"] = tokens
         data["mask"] = masks
         data["tokens_num"] = tokens_num
+
+        return data
+    
+class Note2DictToken:
+    def __init__(
+        self, 
+        tokenizer: DictTokenizer, 
+        max_tokens: int,
+    ):
+        self.tokenizer = tokenizer
+        self.max_tokens = max_tokens
+        
+    def __call__(self, data: dict) -> dict:
+        notes = data["clip_note"]
+        clip_duration = data["clip_duration"]
+
+        sequence = ["<bot>", "<special:<sos>>", "<eot>"]
+        
+        for note in notes:
+            onset_time = note.start
+            offset_time = note.end
+            
+            if onset_time < 0 and 0 <= offset_time <= clip_duration:
+                sequence.extend([
+                    "<bot>",
+                    "<onset:name=note_sustain>",
+                    f"<pitch:pitch={note.pitch}>",
+                    f"<offset:time={offset_time}>",
+                    f"<velocity:velocity={note.velocity}>",
+                    "<eot>"
+                ])
+            elif 0 <= onset_time <= offset_time <= clip_duration:
+                sequence.extend([
+                    "<bot>",
+                    f"<onset:time={onset_time}>",
+                    f"<pitch:pitch={note.pitch}>",
+                    f"<offset:time={offset_time}>",
+                    f"<velocity:velocity={note.velocity}>",
+                    "<eot>"
+                ])
+            elif 0 <= onset_time <= clip_duration < offset_time:
+                sequence.extend([
+                    "<bot>",
+                    f"<onset:time={onset_time}>",
+                    f"<pitch:pitch={note.pitch}>",
+                    "<offset:name=note_sustain>",
+                    f"<velocity:velocity={note.velocity}>",
+                    "<eot>"
+                ])
+            elif onset_time < 0 and clip_duration < offset_time:
+                sequence.extend([
+                    "<bot>",
+                    "<onset:name=note_sustain>",
+                    f"<pitch:pitch={note.pitch}>",
+                    "<offset:name=note_sustain>",
+                    f"<velocity:velocity={note.velocity}>",
+                    "<eot>"
+                ])
+        
+        sequence.extend(["<bot>", "<special:<eos>>", "<eot>"])
+
+        # Tokenize the sequence
+        tokens = self.tokenizer.tokenize(sequence)
+
+        # Ensure the token list doesn't exceed max_tokens
+        if len(tokens) > self.max_tokens:
+            tokens = tokens[:self.max_tokens]
+        else:
+            # pad with <pad> tokens
+            pad_token = self.tokenizer.tokenize(["<bot>", "<special:<pad>>", "<eot>"])
+            tokens.extend(pad_token * (self.max_tokens - len(tokens)))
+
+        # Create mask
+        masks = [1] * len(tokens)
+        masks = masks[:self.max_tokens]
+        masks.extend([0] * (self.max_tokens - len(masks)))
+
+        data["word"] = sequence
+        data["token"] = tokens
+        data["mask"] = np.array(masks)
+        data["tokens_num"] = len(sequence)
 
         return data
