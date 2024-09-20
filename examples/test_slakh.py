@@ -20,6 +20,7 @@ def generate_distinct_colors(n):
 
 if __name__ == '__main__':
     root = "/root/slakh2100_flac_redux"
+    # root = "/datasets/slakh2100_flac"
     sr = 16000
     fps = 100
     pitches_num = 128
