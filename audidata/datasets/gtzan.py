@@ -74,7 +74,7 @@ class GTZAN(Dataset):
         label = self.meta_dict["label"][index]
 
         full_data = {
-            "dataset_name": "MUSDB18HQ",
+            "dataset_name": "GTZAN",
             "audio_path": str(audio_path),
         }
 
@@ -177,7 +177,7 @@ class GTZAN(Dataset):
             "start_time": start_time,
             "duration": clip_duration if clip_duration else audio_duration
         }
-
+        
         if self.transform is not None:
             data = self.transform(data)
 
