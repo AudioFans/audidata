@@ -3,7 +3,7 @@ import librosa
 import numpy as np
 from pretty_midi import Note
 
-from audidata.tokenizers.base import BaseTokenizer
+from audidata.tokenizers.base import BaseTokenizer, DictTokenizer
 
 
 class PianoRoll:
@@ -233,19 +233,23 @@ class Note2Token:
             offset_time = note.end
             pitch = note.pitch
             velocity = note.velocity
+            is_drum = note.is_drum
 
             if 0 <= onset_time <= clip_duration:
 
                 words.append("name=note_on")
                 words.append("time={}".format(onset_time))
-                words.append("pitch={}".format(pitch))
+                if not is_drum:
+                    words.append("pitch={}".format(pitch))
+                else:
+                    words.append("drum_pitch={}".format(pitch))
                 words.append("velocity={}".format(velocity))
                 
             if 0 <= offset_time <= clip_duration:
-
-                words.append("name=note_off")
-                words.append("time={}".format(offset_time))
-                words.append("pitch={}".format(pitch))
+                if not is_drum: # no note_off for drums
+                    words.append("name=note_off")
+                    words.append("time={}".format(offset_time))
+                    words.append("pitch={}".format(pitch))
 
         words.append("<eos>")
 
@@ -317,7 +321,6 @@ class MultiTrackNote2Token:
         tracks = data["tracks"]
         clip_start_time = data["start_time"]
         clip_duration = data["clip_duration"]
-        print(clip_start_time)
 
         all_note_activities = []
         for track_idx, track in enumerate(tracks):
@@ -325,6 +328,8 @@ class MultiTrackNote2Token:
                 "clip_note": track["note"],
                 "clip_duration": clip_duration + clip_start_time
             }
+            
+            is_drum = track.get("is_drum", False)
 
             for note in track_data["clip_note"]:
                 onset = note.start
@@ -338,16 +343,18 @@ class MultiTrackNote2Token:
                         "pitch": pitch,
                         "velocity": velocity,
                         "program": self.get_inst_program_token(track["inst_class"]),
-                        "activity": "note_on"
+                        "activity": "note_on",
+                        "is_drum": is_drum
                     })
                 
                 if 0 <= offset <= clip_duration:
-                    all_note_activities.append({
-                        "time": offset,
-                        "pitch": pitch,
-                        "velocity": velocity,
-                        "activity": "note_off"
-                    })
+                    if not is_drum: # no note_off for drums
+                        all_note_activities.append({
+                            "time": offset,
+                            "pitch": pitch,
+                            "velocity": velocity,
+                            "activity": "note_off"
+                        })
                     
         all_note_activities.sort(key=lambda x: (x["time"], x["pitch"]))
         # TODO: need to discuss. Time should be sorted of course, but pitch? This assumes lower pitches should be predicted first. Make sense because bass notes hint the chord progression...?
@@ -363,8 +370,11 @@ class MultiTrackNote2Token:
             all_words.append(f"name={activity}")
             if activity == "note_on":
                 all_words.append(f"program={program}")
+                if not note_activity["is_drum"]:
+                    all_words.append(f"pitch={pitch}")
+                else:
+                    all_words.append(f"drum_pitch={pitch}")
             all_words.append(f"time={time}")
-            all_words.append(f"pitch={pitch}")
             all_words.append(f"velocity={velocity}")
 
         all_words.append("<eos>")
@@ -388,5 +398,86 @@ class MultiTrackNote2Token:
         data["token"] = tokens
         data["mask"] = masks
         data["tokens_num"] = tokens_num
+
+        return data
+    
+class Note2DictToken:
+    def __init__(
+        self, 
+        tokenizer: DictTokenizer, 
+        max_tokens: int,
+    ):
+        self.tokenizer = tokenizer
+        self.max_tokens = max_tokens
+        
+    def __call__(self, data: dict) -> dict:
+        notes = data["clip_note"]
+        clip_duration = data["clip_duration"]
+
+        sequence = ["<bot>", "<special:<sos>>", "<eot>"]
+        
+        for note in notes:
+            onset_time = note.start
+            offset_time = note.end
+            
+            if onset_time < 0 and 0 <= offset_time <= clip_duration:
+                sequence.extend([
+                    "<bot>",
+                    "<onset:name=note_sustain>",
+                    f"<pitch:pitch={note.pitch}>",
+                    f"<offset:time={offset_time}>",
+                    f"<velocity:velocity={note.velocity}>",
+                    "<eot>"
+                ])
+            elif 0 <= onset_time <= offset_time <= clip_duration:
+                sequence.extend([
+                    "<bot>",
+                    f"<onset:time={onset_time}>",
+                    f"<pitch:pitch={note.pitch}>",
+                    f"<offset:time={offset_time}>",
+                    f"<velocity:velocity={note.velocity}>",
+                    "<eot>"
+                ])
+            elif 0 <= onset_time <= clip_duration < offset_time:
+                sequence.extend([
+                    "<bot>",
+                    f"<onset:time={onset_time}>",
+                    f"<pitch:pitch={note.pitch}>",
+                    "<offset:name=note_sustain>",
+                    f"<velocity:velocity={note.velocity}>",
+                    "<eot>"
+                ])
+            elif onset_time < 0 and clip_duration < offset_time:
+                sequence.extend([
+                    "<bot>",
+                    "<onset:name=note_sustain>",
+                    f"<pitch:pitch={note.pitch}>",
+                    "<offset:name=note_sustain>",
+                    f"<velocity:velocity={note.velocity}>",
+                    "<eot>"
+                ])
+        
+        sequence.extend(["<bot>", "<special:<eos>>", "<eot>"])
+
+        # Tokenize the sequence
+        tokens = self.tokenizer.tokenize(sequence)
+
+        # Ensure the token list doesn't exceed max_tokens
+        if len(tokens) > self.max_tokens:
+            tokens = tokens[:self.max_tokens]
+        else:
+            # pad with <pad> tokens
+            pad_token = self.tokenizer.tokenize(["<bot>", "<special:<pad>>", "<eot>"])
+            tokens.extend(pad_token * (self.max_tokens - len(tokens)))
+
+        # Create mask
+        masks = [1] * len(tokens)
+        masks = masks[:self.max_tokens]
+        masks.extend([0] * (self.max_tokens - len(masks)))
+
+        data["word"] = sequence
+        data["token"] = tokens
+        data["mask"] = np.array(masks)
+        data["tokens_num"] = len(sequence)
 
         return data

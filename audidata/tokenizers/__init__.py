@@ -1,3 +1,3 @@
 from audidata.tokenizers.base import (BaseTokenizer, SpecialTokenizer, 
 	NameTokenizer, TimeTokenizer, PitchTokenizer, VelocityTokenizer, 
-	ConcatTokenizer, ProgramTokenizer)
+	ConcatTokenizer, ProgramTokenizer, DrumTokenizer, DictTokenizer)

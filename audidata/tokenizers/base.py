@@ -93,7 +93,14 @@ class VelocityTokenizer(BaseTokenizer):
         words = ["velocity={}".format(pitch) for pitch in range(classes_num)]
 
         super().__init__(words=words)
+        
+class DrumTokenizer(BaseTokenizer):
+    def __init__(self, classes_num=128):
+        
+        words = ["drum_pitch={}".format(pitch) for pitch in range(classes_num)]
 
+        super().__init__(words=words)
+        
 
 class ConcatTokenizer:
     def __init__(self, tokenizers, verbose=False):
@@ -164,20 +171,87 @@ class ProgramTokenizer(BaseTokenizer):
         if 0 <= token < 128:
             return f"program={token}"
         return "program=0"
-
+    
+class DictTokenizer(BaseTokenizer):
+    def __init__(self, key_tokenizer_pairs):
+        self.key_tokenizer_pairs = key_tokenizer_pairs
+        self.keys = list(key_tokenizer_pairs.keys())
+        self.tokenizers = list(key_tokenizer_pairs.values())
+        
+        words = ["<bot>", "<eot>"]  # begin of token, end of token
+        for key in self.keys:
+            words.append(f"<{key}>")  # Add a token for each key
+        for tokenizer in self.tokenizers:
+            for word in tokenizer.words:
+                words.append(f"<{word}>")
+        
+        super().__init__(words=words)
+        
+        self.bot_token = self.word_to_token["<bot>"]
+        self.eot_token = self.word_to_token["<eot>"]
+        self.key_tokens = {key: self.word_to_token[f"<{key}>"] for key in self.keys}
+        self.vocab_size = len(self.words)
+    
+    def tokenize(self, sequence):
+        tokens = []
+        current_dict = None
+        for item in sequence:
+            if item == "<bot>":
+                if current_dict is not None:
+                    tokens.append(current_dict)
+                current_dict = {key: self.key_tokens[key] for key in self.keys}  
+                # Initialize with key tokens, therefore if a key has not been used, it will be initialized with the key token.
+            elif item == "<eot>":
+                if current_dict is not None:
+                    tokens.append(current_dict)
+                    current_dict = None
+            else:
+                key, value = item[1:-1].split(":", 1)
+                tokenizer = self.key_tokenizer_pairs[key]
+                token = tokenizer.stoi(value)
+                if token is not None and current_dict is not None:
+                    current_dict[key] = token
+        
+        if current_dict is not None:
+            tokens.append(current_dict)
+        
+        return tokens
+    
+    def detokenize(self, tokens):
+        sequence = []
+        for token_dict in tokens:
+            sequence.append("<bot>")
+            for key, value in token_dict.items():
+                if value == self.key_tokens[key]:
+                    continue  # Skip if it's just the key token
+                tokenizer = self.key_tokenizer_pairs[key]
+                word = tokenizer.itos(value)
+                sequence.append(f"<{key}:{word}>")
+            sequence.append("<eot>")
+        
+        return sequence
+    
+    def get_vocab_sizes(self):
+        vocab_dict = {}
+        for key, tokenizer in self.key_tokenizer_pairs.items():
+            vocab_dict[key] = tokenizer.vocab_size + 1 # Add 1 for the key token
+        return vocab_dict
 
 
 if __name__ == '__main__':
     r"""Example.
     """
+    
+    print("Testing ConcatTokenizer")
 
     tokenizer = ConcatTokenizer([
         SpecialTokenizer(),
         NameTokenizer(),
         TimeTokenizer(),
         PitchTokenizer(),
+        DrumTokenizer(),
         VelocityTokenizer(),
-        ProgramTokenizer()
+        ProgramTokenizer(),
     ])
 
     token = tokenizer.stoi("name=note_on")
@@ -199,3 +273,31 @@ if __name__ == '__main__':
     token = tokenizer.stoi("program=34")
     word = tokenizer.itos(token)
     print(token, word)
+    
+    token = tokenizer.stoi("drum_pitch=34")
+    word = tokenizer.itos(token)
+    print(token, word)
+    
+    print("Testing DictTokenizer")
+    
+    tokenizer = DictTokenizer({
+        "special": SpecialTokenizer(),
+        "onset": ConcatTokenizer([
+            TimeTokenizer(),
+            NameTokenizer(),
+        ]),
+        "pitch": PitchTokenizer(),
+        "velocity": VelocityTokenizer(),
+        "offset": ConcatTokenizer([
+            TimeTokenizer(),
+            NameTokenizer(),
+        ]),
+    })
+    
+    print("Vocab sizes:", tokenizer.get_vocab_sizes())
+
+    new_sequence = ["<bot>", "<special:<sos>>", "<eot>", "<bot>", "<onset:time=1.9000>", "<pitch:pitch=34>", "<velocity:velocity=34>", "<offset:time=1.9700>", "<eot>"]
+    new_tokens = tokenizer.tokenize(new_sequence)
+    print("New sequence tokens:", len(new_tokens), "tokens, ", len(new_sequence), "words, ", new_tokens)
+    new_text = tokenizer.detokenize(new_tokens)
+    print("New sequence detokenized:", new_text)
