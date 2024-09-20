@@ -48,10 +48,10 @@ class Shutterstock(Dataset):
         self.meta_csv = Path(self.root, "28kdescriptions.csv")
         self.audios_dir = Path(self.root, "flac")
 
-        self.meta_dict = self.load_meta(self.meta_csv)
+        self.meta_dict = self.load_meta(self.meta_csv, self.audios_dir)
 
         if not Path(root).exists():
-            raise "Please download the Shutterstock dataset from {}".format(AudioCaps.url)
+            raise "Please download the Shutterstock dataset from {}".format(Shutterstock.url)
 
     def __getitem__(self, index: int) -> dict:
 
@@ -60,7 +60,7 @@ class Shutterstock(Dataset):
         audio_path = Path(self.audios_dir, audio_name)
 
         full_data = {
-            "dataset_name": "AudioCaps",
+            "dataset_name": "Shutterstock",
             "audio_path": str(audio_path),
         }
 
@@ -80,16 +80,21 @@ class Shutterstock(Dataset):
 
         return audios_num
 
-    def load_meta(self, meta_csv: str) -> dict:
+    def load_meta(self, meta_csv: str, audios_dir: str) -> dict:
 
-        meta_dict = {"audio_name": [], "title": [], "caption": []}
+        audio_names_dict = {str(Path(name).stem): True for name in os.listdir(audios_dir)}
 
         df = pd.read_csv(meta_csv, sep=',')
-
+        meta_dict = {"audio_name": [], "title": [], "caption": []}
+        
         for n in range(len(df)):
-            meta_dict["audio_name"].append("{}.flac".format(df["idds"].values[n]))
-            meta_dict["title"].append(df["titles"].values[n])
-            meta_dict["caption"].append(df["descri"].values[n])
+            
+            audio_name = str(df["idds"].values[n])
+
+            if audio_name in audio_names_dict.keys():
+                meta_dict["audio_name"].append("{}.flac".format(audio_name))
+                meta_dict["title"].append(df["titles"].values[n])
+                meta_dict["caption"].append(df["descri"].values[n])
 
         return meta_dict
 
