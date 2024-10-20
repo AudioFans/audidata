@@ -162,6 +162,8 @@ class ProgramTokenizer(BaseTokenizer):
         words = [f"program={i}" for i in range(128)]
         super().__init__(words=words)
 
+    # BUG: <unk> leads to wrong program. So comment out the following functions.
+    # If no problem, the following lines will be removed. 
     '''
     def stoi(self, word: Union[str, int]) -> int:
         if isinstance(word, int):
