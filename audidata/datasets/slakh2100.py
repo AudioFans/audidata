@@ -13,7 +13,7 @@ from audidata.io.audio import load
 from audidata.io.crops import RandomCrop
 from audidata.transforms.audio import ToMono
 from audidata.transforms.midi import PianoRoll
-from audidata.io.midi import read_single_track_midi
+from audidata.io.midi import read_single_track_midi, read_midi_beat
 from audidata.collate.base import collate_list_fn
 
 
@@ -84,6 +84,7 @@ class Slakh2100(Dataset):
         prefix = Path(self.root, self.split, self.meta_dict["audio_name"][index])
         audio_path = Path(prefix, "mix.flac")
         meta_csv = Path(prefix, "metadata.yaml")
+        mix_midi_path = Path(prefix, "all_src.mid")
         midis_dir = Path(prefix, "MIDI")
 
         full_data = {
@@ -99,6 +100,7 @@ class Slakh2100(Dataset):
         if self.target:
             target_data = self.load_target(
                 meta_csv=meta_csv,
+                mix_midi_path=mix_midi_path,
                 midis_dir=midis_dir,
                 start_time=audio_data["start_time"],
                 clip_duration=audio_data["duration"]
@@ -161,6 +163,7 @@ class Slakh2100(Dataset):
     def load_target(
         self, 
         meta_csv: str,
+        mix_midi_path: str,
         midis_dir: str,
         start_time: float, 
         clip_duration: float
@@ -169,8 +172,13 @@ class Slakh2100(Dataset):
         with open(meta_csv, 'r') as f:
             meta = yaml.load(f, Loader=yaml.FullLoader)
 
+        beats, downbeats = read_midi_beat(mix_midi_path)
+
         data = {
-            # "mix": []
+            "start_time": start_time,
+            "clip_duration": clip_duration,
+            "beat": beats,
+            "downbeat": downbeats,
             "tracks": []
         }
 
@@ -179,12 +187,10 @@ class Slakh2100(Dataset):
             if not stem_data["midi_saved"]:
                 continue
 
-            # We do not load "midi_program_name" and "program_num" because those
-            # information are not used to render audio.
-
             inst_class = stem_data["inst_class"]
             is_drum = stem_data["is_drum"]
             plugin_name = stem_data["plugin_name"]
+            program_num = stem_data["program_num"]
 
             midi_path = Path(midis_dir, "{}.mid".format(stem_name))
 
@@ -193,111 +199,19 @@ class Slakh2100(Dataset):
                 extend_pedal=self.extend_pedal
             )
 
-            tmp = {
+            track = {
                 "track_name": stem_name,
                 "inst_class": inst_class,
                 "is_drum": is_drum,
                 "plugin_name": plugin_name,
+                "program_num": program_num,
                 "note": notes,
                 "pedal": pedals,
-                "start_time": start_time,
-                "clip_duration": clip_duration
             }
 
-            data["tracks"].append(tmp)
-        data["start_time"] = start_time
-        data["clip_duration"] = clip_duration
+            data["tracks"].append(track)
 
         if self.target_transform:
             data = self.target_transform(data)
 
         return data
-
-
-class AA:
-    def __init__(self):
-        self.piano_roll_extractor = PianoRoll(fps=100, pitches_num=128)
-
-    def __call__(self, data: dict) -> dict:
-
-        for track in data["tracks"]: 
-            track = self.piano_roll_extractor(track)
-            
-        
-
-        from IPython import embed; embed(using=False); os._exit(0)
-
-
-
-if __name__ == '__main__':
-    r"""Example.
-    """
-
-    import matplotlib.pyplot as plt
-    import soundfile
-    from torch.utils.data import DataLoader
-
-    from audidata.utils import Compose
-
-    root = "/datasets/slakh2100_flac"
-
-    sr = 16000
-
-    target_transform = Compose([
-        AA()
-    ])
-
-    # Dataset
-    dataset = Slakh2100(
-        root=root,
-        split="test",
-        sr=sr,
-        crop=RandomCrop(clip_duration=10., end_pad=9.9),
-        # target_transform=PianoRoll(fps=100, pitches_num=128),
-        target_transform=target_transform,
-    )
-
-    dataloader = DataLoader(
-        dataset=dataset, 
-        batch_size=4, 
-        num_workers=0, 
-    )
-
-    for data in dataloader:
-
-        n = 0
-        from IPython import embed; embed(using=False); os._exit(0)
-        audio = data["audio"][n].cpu().numpy()
-        # frame_roll = data["frame_roll"][n].cpu().numpy()
-        # onset_roll = data["onset_roll"][n].cpu().numpy()
-        # offset_roll = data["offset_roll"][n].cpu().numpy()
-        # velocity_roll = data["velocity_roll"][n].cpu().numpy()
-        # break
-
-    # ------ Visualize ------
-    # print("audio:", audio.shape)
-    # print("frame_roll:", frame_roll.shape)
-    # print("onset_roll:", frame_roll.shape)
-    # print("offset_roll:", frame_roll.shape)
-    # print("velocity_roll:", frame_roll.shape)
-
-    # Write audio
-    out_path = "out.wav"
-    soundfile.write(file=out_path, data=audio.T, samplerate=sr)
-    print("Write out audio to {}".format(out_path))
-
-    # # Mel spectrogram
-    # mel = librosa.feature.melspectrogram(y=audio[0], sr=sr, n_fft=2048, 
-    #     hop_length=160, n_mels=229, fmin=0, fmax=8000)
-
-    # # Plot
-    # fig, axs = plt.subplots(5, 1, sharex=True, figsize=(20, 15))
-    # axs[0].matshow(np.log(mel), origin='lower', aspect='auto', cmap='jet')
-    # axs[1].matshow(frame_roll.T, origin='lower', aspect='auto', cmap='jet', vmin=0, vmax=1)
-    # axs[1].matshow(frame_roll.T, origin='lower', aspect='auto', cmap='jet', vmin=0, vmax=1)
-    # axs[2].matshow(onset_roll.T, origin='lower', aspect='auto', cmap='jet', vmin=0, vmax=1)
-    # axs[3].matshow(offset_roll.T, origin='lower', aspect='auto', cmap='jet', vmin=0, vmax=1)
-    # axs[4].matshow(velocity_roll.T, origin='lower', aspect='auto', cmap='jet', vmin=0, vmax=1)
-    # fig_path = "out.pdf"
-    # plt.savefig(fig_path)
-    # print("Write out fig to {}".format(fig_path))
