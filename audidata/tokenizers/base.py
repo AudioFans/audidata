@@ -102,6 +102,14 @@ class DrumTokenizer(BaseTokenizer):
         super().__init__(words=words)
         
 
+class BeatTokenizer(BaseTokenizer):
+    def __init__(self, classes_num=16):
+
+        words = [f"beat={i}" for i in range(classes_num)]
+        
+        super().__init__(words=words)
+
+
 class ConcatTokenizer:
     def __init__(self, tokenizers, verbose=False):
 
@@ -154,6 +162,7 @@ class ProgramTokenizer(BaseTokenizer):
         words = [f"program={i}" for i in range(128)]
         super().__init__(words=words)
 
+    '''
     def stoi(self, word: Union[str, int]) -> int:
         if isinstance(word, int):
             if 0 <= word < 128:
@@ -166,11 +175,14 @@ class ProgramTokenizer(BaseTokenizer):
             except ValueError:
                 pass
         return self.word_to_token.get("<unk>", 0)  # Default to 0 (Piano). TODO: discuss
+    '''
 
+    '''
     def itos(self, token: int) -> str:
         if 0 <= token < 128:
             return f"program={token}"
         return "program=0"
+    '''
     
 class DictTokenizer(BaseTokenizer):
     def __init__(self, key_tokenizer_pairs):
