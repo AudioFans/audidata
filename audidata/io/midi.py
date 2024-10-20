@@ -15,6 +15,16 @@ class Pedal:
         return "Pedal(start={:.4f}, end={:.4f})".format(self.start, self.end)
 
 
+def read_midi_beat(midi_path: str):
+
+    midi_data = PrettyMIDI(str(midi_path))
+
+    beats = midi_data.get_beats()
+    downbeats = midi_data.get_downbeats()
+
+    return beats, downbeats
+
+
 def read_single_track_midi(
     midi_path: str, 
     extend_pedal: bool
