@@ -141,39 +141,3 @@ class AudioCaps(Dataset):
             data = self.target_transform(data)
 
         return data
-
-
-if __name__ == "__main__":
-    r"""Example.
-    """
-    
-    from torch.utils.data import DataLoader
-    
-    root = "/datasets/audiocaps"
-
-    sr = 16000
-    clip_duration = 10.
-
-    dataset = AudioCaps(
-        root=root,
-        split="train",
-        sr=sr,
-        crop=StartCrop(clip_duration=clip_duration)
-    )
-
-    dataloader = DataLoader(dataset=dataset, batch_size=4)
-
-    for data in dataloader:
-        
-        n = 0
-        audio_path = data["audio_path"][n]
-        start_time = data["start_time"][n].cpu().numpy()
-        audio = data["audio"][n].cpu().numpy()
-        caption = data["caption"][n]
-        break
-
-    # ------ Visualize ------
-    print("audio_path:", audio_path)
-    print("start_time:", start_time)
-    print("audio:", audio.shape)
-    print("caption:", caption)

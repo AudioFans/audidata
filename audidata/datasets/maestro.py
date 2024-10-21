@@ -82,7 +82,7 @@ class MAESTRO(Dataset):
         duration = self.meta_dict["duration"][index]
 
         full_data = {
-            "dataset_name": "MAESTRO V3.0.0",
+            "dataset_name": "MAESTRO",
             "audio_path": str(audio_path),
         }
 
@@ -175,69 +175,3 @@ class MAESTRO(Dataset):
             data = self.target_transform(data)
 
         return data
-
-
-if __name__ == '__main__':
-    r"""Example.
-    """
-
-    import matplotlib.pyplot as plt
-    import soundfile
-    from torch.utils.data import DataLoader
-
-    root = "/datasets/maestro-v3.0.0"
-
-    sr = 16000
-
-    # Dataset
-    dataset = MAESTRO(
-        root=root,
-        split="train",
-        sr=sr,
-        crop=RandomCrop(clip_duration=10., end_pad=9.9),
-        target_transform=PianoRoll(fps=100, pitches_num=128),
-    )
-
-    dataloader = DataLoader(
-        dataset=dataset, 
-        batch_size=4, 
-        num_workers=0, 
-    )
-
-    for data in dataloader:
-
-        n = 0
-        audio = data["audio"][n].cpu().numpy()
-        frame_roll = data["frame_roll"][n].cpu().numpy()
-        onset_roll = data["onset_roll"][n].cpu().numpy()
-        offset_roll = data["offset_roll"][n].cpu().numpy()
-        velocity_roll = data["velocity_roll"][n].cpu().numpy()
-        break
-
-    # ------ Visualize ------
-    print("audio:", audio.shape)
-    print("frame_roll:", frame_roll.shape)
-    print("onset_roll:", frame_roll.shape)
-    print("offset_roll:", frame_roll.shape)
-    print("velocity_roll:", frame_roll.shape)
-
-    # Write audio
-    out_path = "out.wav"
-    soundfile.write(file=out_path, data=audio.T, samplerate=sr)
-    print("Write out audio to {}".format(out_path))
-
-    # Mel spectrogram
-    mel = librosa.feature.melspectrogram(y=audio[0], sr=sr, n_fft=2048, 
-        hop_length=160, n_mels=229, fmin=0, fmax=8000)
-
-    # Plot
-    fig, axs = plt.subplots(5, 1, sharex=True, figsize=(20, 15))
-    axs[0].matshow(np.log(mel), origin='lower', aspect='auto', cmap='jet')
-    axs[1].matshow(frame_roll.T, origin='lower', aspect='auto', cmap='jet', vmin=0, vmax=1)
-    axs[1].matshow(frame_roll.T, origin='lower', aspect='auto', cmap='jet', vmin=0, vmax=1)
-    axs[2].matshow(onset_roll.T, origin='lower', aspect='auto', cmap='jet', vmin=0, vmax=1)
-    axs[3].matshow(offset_roll.T, origin='lower', aspect='auto', cmap='jet', vmin=0, vmax=1)
-    axs[4].matshow(velocity_roll.T, origin='lower', aspect='auto', cmap='jet', vmin=0, vmax=1)
-    fig_path = "out.pdf"
-    plt.savefig(fig_path)
-    print("Write out fig to {}".format(fig_path))
