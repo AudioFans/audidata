@@ -18,62 +18,50 @@ from audidata.collate.base import collate_list_fn
 default_collate_fn_map.update({list: collate_list_fn})
 
 
-class MAESTRO(Dataset):
-    r"""MAESTRO [1] is a dataset containing 199 hours of 1,276 audio files and 
-    aligned MIDI files captured by Yamaha Disklaiver. Audios are sampled at 44,100 Hz. 
-    After decompression, the dataset is 131 GB.
+class VoicebankDemand(Dataset):
+    r"""Voicebank-Demand [1] contains paired noisy and clean speech for training
+    speech enhancement algorithms. Voicebank-Demand contains 20 hours of 24,793
+    audio files. Audios are sampled at 16,000 Hz. After decompression, the 
+    dataset is 2.5 GB.
 
-    [1] C. Hawthorne, et al., Enabling Factorized Piano Music Modeling and 
-    Generation with the MAESTRO Dataset, ICLR, 2019
+    [1] Thiemann, J., et al. The diverse environments multi-channel acoustic 
+    noise database (demand): A database of multichannel environmental noise 
+    recordings. In Proceedings of Meetings on Acoustics, 2013
 
     The dataset looks like:
 
-        dataset_root (131 GB)
-        ├── 2004 (132 songs, wav + flac + midi + tsv)
-        ├── 2006 (115 songs, wav + flac + midi + tsv)
-        ├── 2008 (147 songs, wav + flac + midi + tsv)
-        ├── 2009 (125 songs, wav + flac + midi + tsv)
-        ├── 2011 (163 songs, wav + flac + midi + tsv)
-        ├── 2013 (127 songs, wav + flac + midi + tsv)
-        ├── 2014 (105 songs, wav + flac + midi + tsv)
-        ├── 2015 (129 songs, wav + flac + midi + tsv)
-        ├── 2017 (140 songs, wav + flac + midi + tsv)
-        ├── 2018 (93 songs, wav + flac + midi + tsv)
-        ├── LICENSE
-        ├── maestro-v3.0.0.csv
-        ├── maestro-v3.0.0.json
-        └── README
+        voicebank-demand (2.5 GB)
+        ├── clean_trainset_wav
+        │    └── ... (11572 wavs)
+        ├── noisy_trainset_wav
+        │    └── ... (11572 wavs)
+        ├── clean_testset_wav
+        │    └── ... (824 wavs)
+        └── noisy_testset_wav
+             └── ... (824 wavs)
     """
 
-    url = "https://magenta.tensorflow.org/datasets/maestro"
+    url = "https://datashare.ed.ac.uk/handle/10283/2791"
 
-    duration = 717232.49  # Dataset duration (s), 199 hours, including training, 
-    # validation, and testing.
+    duration = 71761.32  # Dataset duration (s), 20 hours, including training 
+    # and testing.
 
     def __init__(
         self, 
         root: str, 
         split: str = "train",
         sr: float = 16000,
-        crop: Optional[callable] = RandomCrop(clip_duration=10., end_pad=9.9),
+        crop: Optional[callable] = RandomCrop(clip_duration=2., end_pad=0.),
         transform: Optional[callable] = ToMono(),
-        target_types: bool = True,
-        extend_pedal: bool = True,
-        target_transform: Optional[callable] = PianoRoll(fps=100, pitches_num=128),
     ):
 
         self.root = root
         self.split = split
         self.sr = sr
         self.crop = crop
-        self.target_types = target_types
-        self.extend_pedal = extend_pedal
         self.transform = transform
-        self.target_transform = target_transform
 
-        meta_csv = Path(self.root, "maestro-v3.0.0.csv")
-
-        self.meta_dict = self.load_meta(meta_csv)
+        from IPython import embed; embed(using=False); os._exit(0)
         
     def __getitem__(self, index: int) -> dict:
 
