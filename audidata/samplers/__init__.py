@@ -1,2 +1,3 @@
-from audidata.samplers.base import InfiniteSampler
+from audidata.samplers.infinite_sampler import InfiniteSampler
+from audidata.samplers.random_song_sampler import MUSDB18HQ_RandomSongSampler
 from audidata.samplers.multi_datasets import MultiDatasetsBatchSampler
