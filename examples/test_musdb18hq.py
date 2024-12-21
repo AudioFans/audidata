@@ -3,6 +3,7 @@ from torch.utils.data import DataLoader
 
 from audidata.io.crops import RandomCrop
 from audidata.datasets import MUSDB18HQ
+from audidata.samplers import InfiniteSampler, MUSDB18HQ_RandomSongSampler
 
 
 if __name__ == "__main__":
@@ -42,31 +43,31 @@ if __name__ == "__main__":
         split="train",
         sr=sr,
         crop=RandomCrop(clip_duration=2., end_pad=0.),
+        target_stems=["vocals", "drums"],
+        time_align="group",
+        mixture_transform=None,
+        group_transform=None,
+        stem_transform=None
     )
 
-    dataloader = DataLoader(dataset=dataset, batch_size=4)
+    print(dataset[3])
+    print(dataset[{"vocals": 3, "bass": 11, "drums": 3, "other": 11}])
+
+    sampler1 = InfiniteSampler(dataset)  # Stems from a same song.
+    sampler2 = MUSDB18HQ_RandomSongSampler(dataset)  # Stems from different songs. Better performance
+    dataloader = DataLoader(dataset=dataset, batch_size=4, sampler=sampler2)
 
     for data in dataloader:
-
-        n = 0
-        audio_path = data["audio_path"][n]
-        bass = data["bass"][n].cpu().numpy()
-        drums = data["drums"][n].cpu().numpy()
-        other = data["other"][n].cpu().numpy()
-        vocals = data["vocals"][n].cpu().numpy()
-        accompaniment = data["accompaniment"][n].cpu().numpy()
-        mixture = data["mixture"][n].cpu().numpy()
+        print(data)
+        target = data["target"][0].cpu().numpy()
+        bg = data["background"][0].cpu().numpy()
+        mixture = data["mixture"][0].cpu().numpy()
         break
-
-    # ------ Visualize ------
-    print("audio_path:", audio_path)
-    print("mixture:", mixture.shape)
 
     import soundfile
     Path("results").mkdir(parents=True, exist_ok=True)
-    soundfile.write(file="results/out_bass.wav", data=bass.T, samplerate=sr)
-    soundfile.write(file="results/out_drums.wav", data=drums.T, samplerate=sr)
-    soundfile.write(file="results/out_other.wav", data=other.T, samplerate=sr)
-    soundfile.write(file="results/out_vocals.wav", data=vocals.T, samplerate=sr)
-    soundfile.write(file="results/out_acc.wav", data=accompaniment.T, samplerate=sr)
-    soundfile.write(file="results/out_mixture.wav", data=mixture.T, samplerate=sr)
+    soundfile.write(file="results/musdb18hq_target.wav", data=target.T, samplerate=sr)
+    soundfile.write(file="results/musdb18hq_bg.wav", data=bg.T, samplerate=sr)
+    soundfile.write(file="results/musdb18hq_mixture.wav", data=mixture.T, samplerate=sr)
+
+

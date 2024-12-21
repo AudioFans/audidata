@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader
 
 from audidata.datasets import MAESTRO
 from audidata.io.crops import RandomCrop
+from audidata.transforms.audio import ToMono
 from audidata.transforms.midi import PianoRoll
 
 
@@ -44,8 +45,13 @@ if __name__ == '__main__':
         split="train",
         sr=sr,
         crop=RandomCrop(clip_duration=10., end_pad=9.9),
+        transform=ToMono(),
+        target_types=True,
+        extend_pedal=True,
         target_transform=PianoRoll(fps=100, pitches_num=128),
     )
+
+    print(dataset[0].keys())
 
     dataloader = DataLoader(
         dataset=dataset, 
