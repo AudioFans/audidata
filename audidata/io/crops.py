@@ -2,49 +2,6 @@ from __future__ import annotations
 import random
 
 
-'''
-class StartCrop:
-    r"""Prepare start time and duration of to crop from the start.
-    """
-
-    def __init__(self, clip_duration: float):
-        self.clip_duration = clip_duration
-
-    def __call__(self, audio_duration: float) -> tuple[float, float]:
-        start_time = 0.
-        return start_time, self.clip_duration
-
-
-class RandomCrop:
-    r"""Prepare start time and duration of to crop from random time.
-    """
-
-    def __init__(
-        self, 
-        clip_duration: float, 
-        end_pad: float = 0  # Pad silent at the end (s)
-    ):
-        self.clip_duration = clip_duration
-        self.end_pad = end_pad
-
-    def __call__(self, audio_duration: float) -> tuple[float, float]:
-
-        padded_duration = audio_duration + self.end_pad
-
-        if self.clip_duration <= padded_duration:
-            start_time = random.uniform(0., padded_duration - self.clip_duration)
-
-        else:
-            start_time = 0
-
-        return start_time, self.clip_duration
-'''
-
-# class BaseCrop:
-#     def __init__(self, clip_duration: float):
-#         self.clip_duration = clip_duration
-
-
 class StartCrop:
     r"""Prepare start time and duration of to crop from the start.
     """
@@ -53,7 +10,7 @@ class StartCrop:
         self.start_time = 0.
         self.clip_duration = clip_duration
 
-    def __call__(self, **kwargs) -> float:
+    def __call__(self, **kwargs) -> tuple[float, float]:
         return self.start_time, self.clip_duration
 
 
