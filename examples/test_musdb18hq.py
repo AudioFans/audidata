@@ -53,8 +53,9 @@ if __name__ == "__main__":
     print(dataset[3])
     print(dataset[{"vocals": 3, "bass": 11, "drums": 3, "other": 11}])
 
-    sampler1 = InfiniteSampler(dataset)  # Stems from a same song.
-    sampler2 = MUSDB18HQ_RandomSongSampler(dataset)  # Stems from different songs. Better performance
+    sampler1 = InfiniteSampler(dataset)  # Mix stems from a same song.
+    sampler2 = MUSDB18HQ_RandomSongSampler(dataset)  # Mix stems from different songs. Better performance
+
     dataloader = DataLoader(dataset=dataset, batch_size=4, sampler=sampler2)
 
     for data in dataloader:
