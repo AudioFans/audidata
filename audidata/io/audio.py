@@ -85,7 +85,10 @@ def load(
         offset=offset, 
         duration=duration
     )
-    # audio: (channels, audio_samples)
+    
+    if audio.ndim == 1:
+        audio = audio[None, :]
+        # audio: (channels, audio_samples)
 
     # Resample. torchaudio's resample faster than librosa's resample
     audio = torchaudio.functional.resample(
@@ -96,7 +99,7 @@ def load(
     # audio: (channels, audio_samples)
 
     if duration:
-        # Fix length after resampling / audio is shorter than duration
+        # Fix length to address 1) after resampling. 2) audio is shorter than duration
         audio = librosa.util.fix_length(
             data=audio, 
             size=round(duration * sr), 
