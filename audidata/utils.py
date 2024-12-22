@@ -1,5 +1,22 @@
 import random
-from typing import Any
+from typing import Any, Union, Callable
+
+
+def call(
+    transform: Union[callable, list[callable]], 
+    x: Any
+) -> Any:
+
+    if isinstance(transform, Callable):
+        return transform(x)
+
+    elif isinstance(transform, list):
+        for trans in transform:
+            x = trans(x)
+        return x
+
+    else:
+        raise TypeError(transform)
 
 
 class RandomChoice:
@@ -18,14 +35,16 @@ class RandomChoice:
         return call(**kwargs)
 
 
-class Compose:
-    def __init__(self, callables: object):
+# class Compose:
+#     def __init__(self, callables: object):
         
-        self.callables = callables
+#         self.callables = callables
 
-    def __call__(self, data: dict) -> dict:
+#     def __call__(self, data: dict) -> dict:
 
-        for call in self.callables:
-            data = call(data)
+#         for call in self.callables:
+#             data = call(data)
 
-        return data
+#         return data
+
+
