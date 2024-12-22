@@ -1,5 +1,5 @@
 # from audidata.transforms.audio import StartCrop, RandomCrop
-from audidata.transforms.audio import ToMono
+from audidata.transforms.audio import ToMono, Normalize
 from audidata.transforms.midi import Note2Token
 
 '''
