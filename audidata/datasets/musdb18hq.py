@@ -54,9 +54,9 @@ class MUSDB18HQ(Dataset):
         crop: callable = RandomCrop(clip_duration=2.),
         target_stems: list[str] = ["vocals"],
         time_align: Literal["strict", "group", "random"] = "group",
-        stem_transform: Optional[callable] = None,
-        group_transform: Optional[callable] = None,
-        mixture_transform: Optional[callable] = None,
+        stem_transform: Optional[Union[callable, list[callable]]] = None,
+        group_transform: Optional[Union[callable, list[callable]]] = None,
+        mixture_transform: Optional[Union[callable, list[callable]]] = None,
     ):
         r"""
         Args:
@@ -120,7 +120,7 @@ class MUSDB18HQ(Dataset):
                 path=audio_paths[stem], 
                 sr=self.sr, 
                 offset=start_times[stem], 
-                duration=clip_durations[stem]
+                duration=clip_durations[stem],
             )
             # shape: (channels, audio_samples)
 
@@ -152,7 +152,7 @@ class MUSDB18HQ(Dataset):
         return self.audios_num
 
     def get_index_dict(self, index: Union[int, dict]) -> dict:
-        r"""Get song indexes of different stems"""
+        r"""Get song indexes of different stems."""
 
         if isinstance(index, int):
             # All sources have same indexes (from the same song)
@@ -177,6 +177,7 @@ class MUSDB18HQ(Dataset):
         return index_dict
 
     def equal_values(self, x: list) -> bool:
+        r"""Check if all values are the same."""
         return len(set(x)) == 1
 
     def update_start_times(self, start_times: dict) -> dict:

@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional
+from typing import Optional, NoReturn
 
 import librosa
 import numpy as np
@@ -9,9 +9,10 @@ from torch.utils.data._utils.collate import default_collate_fn_map
 
 from audidata.io.audio import load
 from audidata.io.crops import RandomCrop
+from audidata.io.midi import read_single_track_midi
 from audidata.transforms.audio import ToMono
 from audidata.transforms.midi import PianoRoll
-from audidata.io.midi import read_single_track_midi
+from audidata.utils import call
 from audidata.collate.base import collate_list_fn
 
 
@@ -52,116 +53,80 @@ class VoicebankDemand(Dataset):
         split: str = "train",
         sr: float = 16000,
         crop: Optional[callable] = RandomCrop(clip_duration=2., end_pad=0.),
-        transform: Optional[callable] = ToMono(),
+        stem_transform: Optional[callable] = ToMono(),
     ):
 
         self.root = root
         self.split = split
         self.sr = sr
         self.crop = crop
-        self.transform = transform
+        self.stem_transform = stem_transform
 
-        from IPython import embed; embed(using=False); os._exit(0)
+        self.meta_dict = self.load_metadata()
         
     def __getitem__(self, index: int) -> dict:
 
-        audio_path = Path(self.root, self.meta_dict["audio_name"][index])
-        midi_path = Path(self.root, self.meta_dict["midi_name"][index]) 
-        duration = self.meta_dict["duration"][index]
+        # Audio paths
+        clean_audio_path = str(self.meta_dict["clean_audio_path"][index])
+        mixture_audio_path = str(self.meta_dict["mixture_audio_path"][index])
 
-        full_data = {
-            "dataset_name": "MAESTRO-V3.0.0",
-            "audio_path": str(audio_path),
+        # Start time of a clip
+        audio_duration = librosa.get_duration(path=clean_audio_path)
+        start_time, clip_duration = self.crop(audio_duration=audio_duration)
+
+        data = {
+            "dataset_name": "VoicebankDemand",
+            "clean_audio_path": clean_audio_path,
+            "mixture_audio_path": mixture_audio_path
         }
 
-        # Load audio
-        audio_data = self.load_audio(path=audio_path)
-        full_data.update(audio_data)
-        
         # Load target
-        if self.target_types:
-            target_data = self.load_target(
-                midi_path=midi_path, 
-                start_time=audio_data["start_time"],
-                clip_duration=audio_data["duration"]
-            )
-            full_data.update(target_data)
-        
-        return full_data
-
-    def __len__(self):
-
-        audios_num = len(self.meta_dict["audio_name"])
-
-        return audios_num
-
-    def load_meta(self, meta_csv: str) -> dict:
-        r"""Load meta dict.
-        """
-
-        df = pd.read_csv(meta_csv, sep=',')
-
-        indexes = df["split"].values == self.split
-
-        meta_dict = {
-            "midi_name": df["midi_filename"].values[indexes],
-            "audio_name": df["audio_filename"].values[indexes],
-            "duration": df["duration"].values[indexes]
-        }
-
-        return meta_dict
-
-    def load_audio(self, path: str) -> dict:
-
-        audio_duration = librosa.get_duration(path=path)
-        
-        if self.crop:
-            # Load a clip
-            start_time, duration = self.crop(audio_duration=audio_duration)
-        else:
-            # Load full song
-            start_time = 0.
-            duration = audio_duration
-
-        audio = load(
-            path=path, 
+        data["target"] = load(
+            path=clean_audio_path, 
             sr=self.sr, 
             offset=start_time, 
-            duration=duration
+            duration=clip_duration
         )
         # shape: (channels, audio_samples)
 
-        data = {
-            "audio": audio, 
-            "start_time": start_time,
-            "duration": duration
-        }
-
-        if self.transform is not None:
-            data = self.transform(data)
-
-        return data
-
-    def load_target(
-        self, 
-        midi_path: str, 
-        start_time: float, 
-        clip_duration: float
-    ) -> dict:
-        
-        notes, pedals = read_single_track_midi(
-            midi_path=midi_path, 
-            extend_pedal=self.extend_pedal
+        # Load mixture
+        mixture = load(
+            path=mixture_audio_path, 
+            sr=self.sr, 
+            offset=start_time, 
+            duration=clip_duration
         )
-        
-        data = {
-            "note": notes,
-            "pedal": pedals,
-            "start_time": start_time,
-            "clip_duration": clip_duration
-        }
-        
-        if self.target_transform:
-            data = self.target_transform(data)
+        # shape: (channels, audio_samples)
 
+        data["background"] = mixture - data["target"]
+
+        if self.stem_transform is not None:
+            data["target"] = call(self.stem_transform, data["target"])
+            data["background"] = call(self.stem_transform, data["background"])
+            
+        data["mixture"] = data["target"] + data["background"]
+        
         return data
+
+    def __len__(self):
+
+        audios_num = len(self.meta_dict["clean_audio_path"])
+
+        return audios_num
+
+    def load_metadata(self) -> dict:
+        r"""Load meta dict.
+        """
+
+        clean_audios_dir = Path(self.root, "clean_{}set_wav".format(self.split))
+        clean_audio_paths = sorted(list(clean_audios_dir.glob("*.wav")))
+        
+        mixture_audios_dir = Path(self.root, "noisy_{}set_wav".format(self.split))
+        mixture_audio_paths = [Path(mixture_audios_dir, path.name) for path in clean_audio_paths]
+
+        meta_dict = {
+            "clean_audio_path": clean_audio_paths,
+            "mixture_audio_path": mixture_audio_paths
+        }
+
+        return meta_dict
