@@ -1,6 +1,8 @@
+from __future__ import annotations
 import os
 from pathlib import Path
-from typing import Optional, Literal
+from typing import Optional
+from typing_extensions import Literal
 import pandas as pd
 import librosa
 import numpy as np

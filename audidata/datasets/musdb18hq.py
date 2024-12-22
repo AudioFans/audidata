@@ -1,7 +1,9 @@
+from __future__ import annotations
 import os
 import random
 from pathlib import Path
-from typing import Optional, Literal, NoReturn, Union
+from typing import Optional, NoReturn, Union
+from typing_extensions import Literal
 
 import librosa
 import numpy as np
@@ -54,9 +56,9 @@ class MUSDB18HQ(Dataset):
         crop: callable = RandomCrop(clip_duration=2.),
         target_stems: list[str] = ["vocals"],
         time_align: Literal["strict", "group", "random"] = "group",
-        stem_transform: Optional[Union[callable, list[callable]]] = None,
-        group_transform: Optional[Union[callable, list[callable]]] = None,
-        mixture_transform: Optional[Union[callable, list[callable]]] = None,
+        stem_transform: None | callable | list[callable] = None,
+        group_transform: None | callable | list[callable] = None,
+        mixture_transform: None | callable | list[callable] = None,
     ):
         r"""
         Args:

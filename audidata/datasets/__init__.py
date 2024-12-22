@@ -1,3 +1,4 @@
+from __future__ import annotations
 from audidata.datasets.audiocaps import AudioCaps
 from audidata.datasets.clotho import Clotho
 from audidata.datasets.gtzan import GTZAN

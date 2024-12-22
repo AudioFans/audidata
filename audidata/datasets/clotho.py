@@ -1,8 +1,10 @@
+from __future__ import annotations
+from typing import Optional, Union
 import os
 import re
 import pandas as pd
 from pathlib import Path
-from typing import Optional, Union
+
 
 import librosa
 import numpy as np
