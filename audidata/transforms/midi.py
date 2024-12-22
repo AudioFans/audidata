@@ -1,3 +1,4 @@
+from __future__ import annotations
 import math
 import librosa
 import numpy as np

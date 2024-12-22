@@ -1,20 +1,27 @@
-from torch.utils.data._utils.collate import default_collate_fn_map, collate
+from torch.utils.data._utils.collate import collate, collate_tensor_fn
 import torch
+
 
 def collate_list_fn(batch, *, collate_fn_map=None):
     return batch
+
+
+collate_fn_map = {
+    torch.Tensor: collate_tensor_fn,
+    list: collate_list_fn,
+}
 
 
 class CollateToken:
     r"""Collate music transcription tokens.
     """
     def __init__(self):
-
-        default_collate_fn_map.update({list: collate_list_fn})
+        pass
+        # default_collate_fn_map.update({list: collate_list_fn})
 
     def __call__(self, batch: list) -> dict:
         
-        batch = collate(batch=batch, collate_fn_map=default_collate_fn_map)
+        batch = collate(batch=batch, collate_fn_map=collate_fn_map)
 
         # Shorten sequence length
         max_tokens = batch["tokens_num"].max().item()
@@ -27,12 +34,12 @@ class CollateDictToken:
     r"""Collate music transcription tokens in DictTokenizer format.
     """
     def __init__(self):
-
-        default_collate_fn_map.update({list: collate_list_fn})
+        pass
+        # default_collate_fn_map.update({list: collate_list_fn})
     
     def __call__(self, batch: list) -> dict:
             
-        batch = collate(batch=batch, collate_fn_map=default_collate_fn_map)
+        batch = collate(batch=batch, collate_fn_map=collate_fn_map)
         max_tokens = batch["tokens_num"].max().item()
         batch["mask"] = batch["mask"][:, 0 : max_tokens]
         

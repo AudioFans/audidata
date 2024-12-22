@@ -1,9 +1,10 @@
+from __future__ import annotations
 import random
-from typing import Any, Union, Callable
+from typing import Any, Callable
 
 
 def call(
-    transform: Union[callable, list[callable]], 
+    transform: callable | list[callable], 
     x: Any
 ) -> Any:
 

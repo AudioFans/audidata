@@ -72,7 +72,7 @@ class MUSDB18HQ_RandomSongSampler:
         elif self.time_align == "group":
             tar_idx_dict = {stem: buffer["target"] for stem in self.target_stems}
             bg_idx_dict = {stem: buffer["bg"] for stem in self.bg_stems}
-            idx_dict = tar_idx_dict | bg_idx_dict
+            idx_dict = {**tar_idx_dict, **bg_idx_dict}  # Merge dict
 
         elif self.time_align == "random":
             idx_dict = buffer
