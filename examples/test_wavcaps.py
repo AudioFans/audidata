@@ -35,13 +35,10 @@ if __name__ == '__main__':
 
     root = "/datasets/wavcaps"
 
-    sr = 16000
-    clip_duration = 10.
-
     dataset = WavCaps(
         root=root,
-        sr=sr,
-        crop=StartCrop(clip_duration=clip_duration)
+        sr=32000,
+        crop=StartCrop(clip_duration=10.)
     )
 
     dataloader = DataLoader(dataset=dataset, batch_size=4)

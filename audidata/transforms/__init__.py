@@ -1,23 +1,4 @@
-# from audidata.transforms.audio import StartCrop, RandomCrop
-from audidata.transforms.audio import ToMono, Normalize
+from audidata.transforms.audio import Mono, Normalize
+from audidata.transforms.onehot import OneHot
 from audidata.transforms.midi import Note2Token
-
-'''
-import random
-from typing import Any
-
-class RandomChoice:
-	def __init__(self, transforms: object, weights: list[float]):
-		
-		self.transforms = transforms
-		self.weights = weights
-
-	def __call__(self, data: Any) -> Any:
-
-		transform = random.choices(
-			population=self.transforms, 
-			weights=self.weights
-		)[0]
-
-		return transform(data)
-'''
+# from audidata.transforms.text import TextNormalization

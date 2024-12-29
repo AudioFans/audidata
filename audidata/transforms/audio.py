@@ -4,7 +4,7 @@ import librosa
 import soundfile as sf
 
 
-class ToMono:
+class Mono:
     r"""Converts multi-channel audio to mono by averaging all channels.
 
     This transformation takes a multi-channel audio input and returns a mono audio
@@ -32,6 +32,7 @@ class Normalize:
         return x / max(max_value, 1e-8)
 
 
+# TODO
 class PitchShift:
     r"""Applies pitch shifting to the audio.
 
