@@ -11,8 +11,7 @@ from torch.utils.data import Dataset
 
 from audidata.io.audio import load
 from audidata.io.crops import RandomCrop
-from audidata.transforms.audio import ToMono
-from audidata.transforms.text import TextNormalization
+from audidata.transforms.audio import Mono
 
 
 class Shutterstock(Dataset):
@@ -36,8 +35,8 @@ class Shutterstock(Dataset):
         root: str = None, 
         sr: float = 16000,  # Sampling rate
         crop: Optional[callable] = RandomCrop(clip_duration=10.),
-        transform: Optional[callable] = ToMono(),
-        target_transform: Optional[callable] = TextNormalization()
+        transform: Optional[callable] = Mono(),
+        target_transform: Optional[callable] = None
     ) -> None:
     
         self.root = root

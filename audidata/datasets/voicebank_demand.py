@@ -11,7 +11,7 @@ from torch.utils.data._utils.collate import default_collate_fn_map
 from audidata.io.audio import load
 from audidata.io.crops import RandomCrop
 from audidata.io.midi import read_single_track_midi
-from audidata.transforms.audio import ToMono
+from audidata.transforms.audio import Mono
 from audidata.transforms.midi import PianoRoll
 from audidata.utils import call
 from audidata.collate.base import collate_list_fn
@@ -54,7 +54,7 @@ class VoicebankDemand(Dataset):
         split: str = "train",
         sr: float = 16000,
         crop: Optional[callable] = RandomCrop(clip_duration=2., end_pad=0.),
-        stem_transform: Optional[callable] = ToMono(),
+        stem_transform: Optional[callable] = Mono(),
     ):
 
         self.root = root
