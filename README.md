@@ -1,35 +1,26 @@
 # Audidata
 
-Audidata is a toolkit that allows users to easily load audio datasets in less than 5 minutes. Audidata supports music, audio, and speech datasets. Audidata also provides samplers, tokenizers, and transforms. Users can also create their own datasets inside audidata.
+Audidata is a toolkit that allows users to easily load audio datasets. Audidata supports music, audio, and speech datasets. Audidata also provides samplers, tokenizers, and transforms. Users can also create their own datasets, samplers, and transforms based on Audidata.
 
 ## 0. Installation
 
-python >= 3.9 is required.
+### Method 1.
 
-### Method 1. Download source code (Recomended for developers)
+```bash
+pip install audidata
+````
 
-Download source code allows users to edit and create new features for audidata easily. 
+### Method 1. Download source code
 
 ```bash
 git clone https://github.com/AudioFans/audidata
-```
-
-Set environment (for each terminal).
-
-```bash
 cd audidata
 export PYTHONPATH=`pwd`  # Export environment path so that users can import audidata anywhere in the terminal.
 ```
 
-### Method 2. Install via pip (Developing)
-
-```python
-pip install git+https://github.com/AudioFans/audidata.git@main
-```
-
 ## 1. Example
 
-Users must download the dataset manually. We provided how the datasets should be structured in each dataset file. Here is an example of loading GTZAN dataset.
+Users must download the dataset manually. The datsets should be structured described in dataset files. Here is an example of loading GTZAN dataset.
 
 ```python
 from audidata.datasets import GTZAN
@@ -82,9 +73,10 @@ audidata
 │   ├── tokenizers
 │   │   ├── base.py
 │   │   └── ...
-│   └── transforms
-│       ├── midi.py
-│       └── ...
+│   ├── transforms
+│   │   ├── midi.py
+│   │   └── ...
+│   └── utils.py
 ├── examples
 │   ├── test_concat_datasets.py
 │   └── ...
