@@ -1,9 +1,9 @@
 import random
-from typing import NoReturn
+from typing import Sized
 
 
 class InfiniteSampler:
-    def __init__(self, dataset) -> NoReturn:
+    def __init__(self, dataset: Sized) -> None:
         r"""Randomly sample indexes of a dataset without replacement. Execute
         this process infinitely.
         """
@@ -18,6 +18,7 @@ class InfiniteSampler:
         while True:
 
             if self.p == len(self.indexes):
+                
                 # Traversed all data. Reshuffle indexes. Reset pointer.
                 random.shuffle(self.indexes)
                 self.p = 0
