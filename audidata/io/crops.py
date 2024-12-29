@@ -1,3 +1,4 @@
+from __future__ import annotations
 import random
 
 
@@ -6,11 +7,11 @@ class StartCrop:
     """
 
     def __init__(self, clip_duration: float):
+        self.start_time = 0.
         self.clip_duration = clip_duration
 
-    def __call__(self, audio_duration: float) -> tuple[float, float]:
-        start_time = 0.
-        return start_time, self.clip_duration
+    def __call__(self, **kwargs) -> tuple[float, float]:
+        return self.start_time, self.clip_duration
 
 
 class RandomCrop:

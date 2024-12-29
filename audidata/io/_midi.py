@@ -1,4 +1,3 @@
-from __future__ import annotations
 import copy
 import math
 import time
@@ -16,16 +15,6 @@ class Pedal:
         return "Pedal(start={:.4f}, end={:.4f})".format(self.start, self.end)
 
 
-def read_midi_beat(midi_path: str):
-
-    midi_data = PrettyMIDI(str(midi_path))
-
-    beats = midi_data.get_beats()
-    downbeats = midi_data.get_downbeats()
-
-    return beats, downbeats
-
-
 def read_single_track_midi(
     midi_path: str, 
     extend_pedal: bool
@@ -37,9 +26,11 @@ def read_single_track_midi(
         pedals: list[Pedal]
     """
 
-    # Load MIDI is the 10x slower than other IOs
+    t1 = time.time()
     midi_data = PrettyMIDI(str(midi_path))
+    print("c1", time.time() - t1)
     
+    t1 = time.time()
     assert len(midi_data.instruments) == 1
 
     notes = midi_data.instruments[0].notes
@@ -47,11 +38,14 @@ def read_single_track_midi(
 
     # Get pedals
     pedals = get_pedals(control_changes)
+    print("c2", time.time() - t1)
     
+    t1 = time.time()
     # Extend note offsets by pedal information
     if extend_pedal:
         notes = extend_offset_by_pedal(notes, pedals)
-    
+    print("c3", time.time() - t1)
+
     return notes, pedals
 
 def read_multi_track_midi(midi_path: str) -> list[dict]:

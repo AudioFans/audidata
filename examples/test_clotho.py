@@ -3,6 +3,7 @@ from torch.utils.data import DataLoader
 from audidata.datasets import Clotho
 from audidata.io.crops import StartCrop, RandomCrop
 from audidata.utils import RandomChoice
+from audidata.transforms import Mono, TextNormalization
 
 
 if __name__ == '__main__':
@@ -24,9 +25,7 @@ if __name__ == '__main__':
 
     root = "/datasets/clotho"
 
-    sr = 16000
     clip_duration = 10.
-
     crop1 = StartCrop(clip_duration=clip_duration)
     crop2 = RandomCrop(clip_duration=clip_duration, end_pad=0.)
     crop = RandomChoice(callables=[crop1, crop2], weights=[0.5, 0.5])
@@ -34,10 +33,16 @@ if __name__ == '__main__':
     dataset = Clotho(
         root=root,
         split="train",
-        sr=sr,
+        sr=44100,
         crop=crop,
+        transform=Mono(),
+        target_transform=TextNormalization()
     )
 
+    # Example of fetch a data
+    print(dataset[0])
+
+    # Example of dataloader
     dataloader = DataLoader(dataset=dataset, batch_size=4)
 
     for data in dataloader:

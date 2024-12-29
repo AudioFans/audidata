@@ -1,3 +1,4 @@
+from __future__ import annotations
 import os
 import re
 import json
@@ -10,7 +11,8 @@ from torch.utils.data import Dataset
 
 from audidata.io.audio import load
 from audidata.io.crops import StartCrop
-from audidata.transforms.text import TextNormalization
+from audidata.transforms.audio import Mono
+from audidata.utils import call
 
 
 class WavCaps(Dataset):
@@ -46,17 +48,17 @@ class WavCaps(Dataset):
         └── README.md
     """
 
-    url = "https://zenodo.org/records/3490684"
+    URL = "https://zenodo.org/records/3490684"
 
-    duration = 27161470.93  # Dataset duration (s), 7545 hours
+    DURATION = 27161470.93  # Dataset duration (s), 7545 hours
 
     def __init__(
         self, 
         root: str = None, 
-        sr: float = 16000,  # Sampling rate
-        crop: Optional[callable] = StartCrop(clip_duration=10.),
-        transform: Optional[callable] = None,
-        target_transform: Optional[callable] = TextNormalization()
+        sr: float = 32000,  # Sampling rate
+        crop: None | callable = StartCrop(clip_duration=10.),
+        transform: None | callable = None,
+        target_transform: None | callable = None
     ) -> None:
     
         self.root = root
@@ -90,12 +92,12 @@ class WavCaps(Dataset):
             "audio_path": str(audio_path),
         }
 
-        # Load audio
-        audio_data = self.load_audio(path=audio_path)
+        # Load audio data
+        audio_data = self.load_audio_data(path=audio_path)
         full_data.update(audio_data)
 
-        # Load target
-        target_data = self.load_target(caption=caption)
+        # Load target data
+        target_data = self.load_target_data(caption=caption)
         full_data.update(target_data)
 
         return full_data
@@ -111,7 +113,6 @@ class WavCaps(Dataset):
         black_names = self.get_black_names(blacklist_paths)
         # black_names: dict
 
-        # 
         meta_dict = {"subdataset": [], "audio_name": [], "caption": []}
 
         for json_path in json_paths:
@@ -148,7 +149,7 @@ class WavCaps(Dataset):
 
         return black_names
 
-    def load_audio(self, path: str) -> dict:
+    def load_audio_data(self, path: str) -> dict:
 
         audio_duration = librosa.get_duration(path=path)
 
@@ -156,8 +157,9 @@ class WavCaps(Dataset):
             start_time, clip_duration = self.crop(audio_duration=audio_duration)
         else:
             start_time = 0.
-            duration = None
+            clip_duration = audio_duration
 
+        # Load a clip
         audio = load(
             path=path, 
             sr=self.sr, 
@@ -166,21 +168,29 @@ class WavCaps(Dataset):
         )
         # shape: (channels, audio_samples)
 
+        # Transform audio
+        if self.transform is not None:
+            audio = call(transform=self.transform, x=audio)
+
         data = {
             "audio": audio, 
-            "start_time": start_time
+            "start_time": start_time,
+            "duration": clip_duration
         }
-
-        if self.transform is not None:
-            data = self.transform(data)
 
         return data
 
-    def load_target(self, caption: str) -> dict:
+    def load_target_data(self, caption: str) -> dict:
 
-        data = {"caption": caption}
+        target = caption
 
+        # Transform target
         if self.target_transform:
-            data = self.target_transform(data)
+            target = call(transform=self.target_transform, x=target)
+
+        data = {
+            "caption": caption,
+            "target": target,
+        }
 
         return data

@@ -1,6 +1,8 @@
+from __future__ import annotations
 import os
 from pathlib import Path
-from typing import Optional, Literal
+from typing import Optional
+from typing_extensions import Literal
 import pandas as pd
 import librosa
 import numpy as np
@@ -8,7 +10,7 @@ from torch.utils.data import Dataset
 
 from audidata.io.audio import load
 from audidata.io.crops import StartCrop
-from audidata.transforms.audio import ToMono
+from audidata.transforms.audio import Mono
 
 
 class ESC50(Dataset):
@@ -29,7 +31,7 @@ class ESC50(Dataset):
             fold: Optional[int] = None,
             split: Optional[Literal["train", "test"]] = None,
             crop: Optional[callable] = StartCrop(clip_duration=29.),
-            transform: Optional[callable] = ToMono(),
+            transform: Optional[callable] = Mono(),
             target_transform: Optional[callable] = None
     ):
 

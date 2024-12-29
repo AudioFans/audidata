@@ -1,7 +1,9 @@
+from __future__ import annotations
 import os
 import random
 from pathlib import Path
-from typing import Optional
+from typing import Optional, NoReturn, Union
+from typing_extensions import Literal
 
 import librosa
 import numpy as np
@@ -46,135 +48,173 @@ class MUSDB18HQ(Dataset):
     duration = 35359.56  # Dataset duration (s), 9.8 hours, including training, 
     # valdiation, and testing
 
-    source_types = ["bass", "drums", "other", "vocals"]
-    acc_source_types = ["bass", "drums", "other"]
-
     def __init__(
         self,
-        root: str = None, 
-        split: ["train", "test"] = "train",
+        root: str = "/datasets/musdb18hq", 
+        split: Literal["train", "test"] = "train",
         sr: int = 44100,
         crop: callable = RandomCrop(clip_duration=2.),
-        target_source_type: Optional[str] = "vocals",
-        remix: dict = {"no_remix": 0.1, "half_remix": 0.4, "full_remix": 0.5},
-        transform: Optional[callable] = None,
+        target_stems: list[str] = ["vocals"],
+        time_align: Literal["strict", "group", "random"] = "group",
+        stem_transform: None | callable | list[callable] = None,
+        group_transform: None | callable | list[callable] = None,
+        mixture_transform: None | callable | list[callable] = None,
     ):
+        r"""
+        Args:
+            time_align: str. "strict" indicates all stems are aligned (from the 
+                same song and have the same start time). "group" indictates 
+                target stems / background stems are aligned. "random" indicates 
+                all stems are from different songs with different start time.
+        """
 
+        self.stems = ["bass", "drums", "other", "vocals"]
         self.root = root
         self.split = split
         self.sr = sr
         self.crop = crop
-        self.target_source_type = target_source_type
-        self.remix_types = list(remix.keys())
-        self.remix_weights = list(remix.values())
-        self.transform = transform
+        self.target_stems = target_stems
+        self.bg_stems = list(set(self.stems) - set(self.target_stems))
+        self.time_align = time_align
+        self.stem_transform = group_transform
+        self.group_transform = group_transform
+        self.mixture_transform = group_transform
 
-        assert np.sum(self.remix_weights) == 1.0
-        
         if not Path(self.root).exists():
             raise Exception("Please download the MUSDB18HQ dataset from {}".format(MUSDB18HQ.url))
 
         self.audios_dir = Path(self.root, self.split)
-        self.audio_names = sorted(os.listdir(self.audios_dir))
+        self.list_names = sorted(os.listdir(self.audios_dir))
+        self.audios_num = len(self.list_names)
         
-    def __getitem__(self, index: int) -> dict:
+    def __getitem__(
+        self, 
+        index: Union[int, dict],
+    ) -> dict:
 
-        source_types = MUSDB18HQ.source_types
-        acc_source_types = MUSDB18HQ.acc_source_types
+        # Use different song indexes for different stems
+        index_dict = self.get_index_dict(index)
+        # E.g., {"bass": 94, "drums": 94, "other": 35, "vocals": 35}
 
-        audio_name = self.audio_names[index]
+        audio_names = {}
+        audio_paths = {}
+        start_times = {}
+        clip_durations = {}
+
+        for stem in self.stems:
+            
+            audio_names[stem] = self.list_names[index_dict[stem]]
+            audio_paths[stem] = Path(self.audios_dir, audio_names[stem], "{}.wav".format(stem))
+            audio_duration = librosa.get_duration(path=audio_paths[stem])
+            start_times[stem], clip_durations[stem] = self.crop(audio_duration=audio_duration)
+
+        start_times = self.update_start_times(start_times)
+        # E.g., {"bass": 44.86, "drums": 139.68, "other": 44.86, "vocals": 139.68}
 
         data = {
             "dataset_name": "MUSDB18HQ",
-            "audio_path": str(Path(self.audios_dir, audio_name)),
         }
 
-        remix_type = random.choices(
-            population=self.remix_types,
-            weights=self.remix_weights
-        )[0]
+        for stem in self.stems:
 
-        audio_path = Path(self.audios_dir, audio_name, "mixture.wav")
-        audio_duration = librosa.get_duration(path=audio_path)
-
-        start_time_dict = self.get_start_times(
-            audio_duration=audio_duration, 
-            source_types=source_types, 
-            target_source_type=self.target_source_type,
-            remix_type=remix_type
-        )
-
-        for source_type in source_types:
-
-            audio_path = Path(self.audios_dir, audio_name, "{}.wav".format(source_type))
-            start_time = start_time_dict[source_type]
-
-            # Load audio
-            audio = load(
-                path=audio_path, 
+            # Load a clip
+            data[stem] = load(
+                path=audio_paths[stem], 
                 sr=self.sr, 
-                offset=start_time, 
-                duration=self.crop.clip_duration
+                offset=start_times[stem], 
+                duration=clip_durations[stem],
             )
             # shape: (channels, audio_samples)
 
-            if self.transform is not None:
-                audio = self.transform(audio)
+            data["{}_audio_name".format(stem)] = audio_names[stem]
+            data["{}_start_time".format(stem)] = start_times[stem]
 
-            data[source_type] = audio
-            data["{}_start_time".format(source_type)] = start_time
+            # Transform source
+            if self.stem_transform is not None:
+                data[stem] = self.stem_transform(data[stem])
 
-        data["accompaniment"] = np.sum([
-            data[source_type] for source_type in acc_source_types], axis=0)
-        # shape: (channels, audio_samples)
+        # Sum sources to target and background
+        data["target"], data["background"] = self.sources_to_target_and_background(data)
 
-        data["mixture"] = np.sum([
-            data[source_type] for source_type in source_types], axis=0)
-        # shape: (channels, audio_samples)
+        # Transform target and background
+        if self.group_transform is not None:
+            data["target"] = self.group_transform(data["target"])
+            data["background"] = self.group_transform(data["background"])
+
+        # Sum target and background to mixture
+        data["mixture"] = data["target"] + data["background"]
+
+        # Transform mixture
+        if self.mixture_transform is not None:
+            data["mixture"] = self.mixture_transform["mixture"]
 
         return data
 
     def __len__(self) -> int:
+        return self.audios_num
 
-        audios_num = len(self.audio_names)
+    def get_index_dict(self, index: Union[int, dict]) -> dict:
+        r"""Get song indexes of different stems."""
 
-        return audios_num
+        if isinstance(index, int):
+            # All sources have same indexes (from the same song)
+            index_dict = {stem: index for stem in self.stems}
 
-    def get_start_times(
-        self, 
-        audio_duration: float, 
-        source_types: str, 
-        target_source_type: str,
-        remix_type: str
-    ) -> dict:
+        elif isinstance(index, dict):
+            index_dict = index
 
-        start_time_dict = {}
+            if self.time_align == "strict":
+                assert(self.equal_values(index_dict.values()))
 
-        if remix_type == "no_remix":
-            
-            start_time1, _ = self.crop(audio_duration=audio_duration)
-
-            for source_type in source_types:
-                start_time_dict[source_type] = start_time1
-
-        elif remix_type == "half_remix":
-            
-            start_time1, _ = self.crop(audio_duration=audio_duration)
-            start_time2, _ = self.crop(audio_duration=audio_duration)
-
-            for source_type in source_types:
-                if source_type == target_source_type:
-                    start_time_dict[source_type] = start_time1
-                else:
-                    start_time_dict[source_type] = start_time2
-
-        elif remix_type == "full_remix":
-
-            for source_type in source_types:
-                start_time, _ = self.crop(audio_duration=audio_duration)
-                start_time_dict[source_type] = start_time
+            elif self.time_align == "group":
+                assert(self.equal_values([index_dict[stem] for stem in self.target_stems]))
+                assert(self.equal_values([index_dict[stem] for stem in self.bg_stems]))
+                
+            elif self.time_align == "random":
+                pass
 
         else:
-            raise NotImplementedError
+            raise TypeError(index)
 
-        return start_time_dict
+        return index_dict
+
+    def equal_values(self, x: list) -> bool:
+        r"""Check if all values are the same."""
+        return len(set(x)) == 1
+
+    def update_start_times(self, start_times: dict) -> dict:
+        r"""Update start times according to different time_align types."""
+
+        if self.time_align == "strict":
+            for stem in self.stems:
+                start_times[stem] = start_times[self.stems[0]]
+        
+        elif self.time_align == "group":
+            
+            for stem in self.target_stems:
+                start_times[stem] = start_times[self.target_stems[0]]
+            
+            for stem in self.bg_stems:
+                start_times[stem] = start_times[self.bg_stems[0]]
+
+        elif self.time_align == "random":
+            pass
+
+        else:
+            raise ValueError(self.time_align)
+
+        return start_times
+
+    def sources_to_target_and_background(self, data: dict) -> tuple[np.ndarray, np.ndarray]:
+        r"""Sum sources to target and background."""
+
+        target = 0
+        bg = 0
+
+        for stem in self.target_stems:
+            target += data[stem]
+
+        for stem in self.bg_stems:
+            bg += data[stem]
+
+        return target, bg

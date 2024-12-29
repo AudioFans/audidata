@@ -1,6 +1,8 @@
 from __future__ import annotations
 from pathlib import Path
 from typing import Optional
+import difflib
+import os
 
 import librosa
 import numpy as np
@@ -19,37 +21,56 @@ from audidata.collate.base import collate_list_fn
 default_collate_fn_map.update({list: collate_list_fn})
 
 
-class MAESTRO(Dataset):
-    r"""MAESTRO [1] is a dataset containing 199 hours of 1,276 audio files and 
-    aligned MIDI files captured by Yamaha Disklaiver. Audios are sampled at 44,100 Hz. 
-    After decompression, the dataset is 131 GB.
+class Isophonics(Dataset):
+    r"""Isophonics [1] is a dataset contains a collection of albums maintained 
+    by QMUL. The version until Dec. 2024 contains 283 songs from 18 CDs, with a 
+    total duration of 15 hours. Audios are sampled at 44,100 Hz. After 
+    decompression, the dataset is 687 MB. Some songs contains annotations of 
+    beat, chord, structure annotated by QMUL researchers.
 
-    [1] C. Hawthorne, et al., Enabling Factorized Piano Music Modeling and 
-    Generation with the MAESTRO Dataset, ICLR, 2019
+    Audios are from commercial CDs and are not publicly available. Users need
+    to purchase the CDs (or ask for those who has the audio files). Annotations 
+    can be downloaded from [1]. Annotations may contain errors. Please carefully
+    read http://isophonics.net/content/reference-annotations for details.
 
-    The dataset looks like:
+    Confidence:
 
-        dataset_root (131 GB)
-        ├── 2004 (132 songs, wav + flac + midi + tsv)
-        ├── 2006 (115 songs, wav + flac + midi + tsv)
-        ├── 2008 (147 songs, wav + flac + midi + tsv)
-        ├── 2009 (125 songs, wav + flac + midi + tsv)
-        ├── 2011 (163 songs, wav + flac + midi + tsv)
-        ├── 2013 (127 songs, wav + flac + midi + tsv)
-        ├── 2014 (105 songs, wav + flac + midi + tsv)
-        ├── 2015 (129 songs, wav + flac + midi + tsv)
-        ├── 2017 (140 songs, wav + flac + midi + tsv)
-        ├── 2018 (93 songs, wav + flac + midi + tsv)
-        ├── LICENSE
-        ├── maestro-v3.0.0.csv
-        ├── maestro-v3.0.0.json
-        └── README
+    | Dataset         | CDs | Songs | Beat confidence | Chord con.  | Key con. | Structure con. |
+    |-----------------|-----|-------|-----------------|-------------|----------|----------------|
+    | The Beatles     | 12  | 180   | Moderate        | High        | Low      | Good           |
+    | Carole King     |  1  |  14   | -               | Not checked | Moderate | Good           |
+    | Michael Jackson |  3  |  51   | -               | -           | -        | Good           |
+    | Queen           |  2  |  38   | -               | Moderate    | Moderate | Good           |
+
+    [1] http://isophonics.net/
+
+    Users should prepare the dataset looks like:
+
+        dataset_root (687 MB)
+        ├── audio (283 mp3s)
+        │   ├── 01_-_Please_Please_Me_01_-_I_Saw_Her_Standing_There.mp3
+        │   └── ...
+        └── annotations
+            ├── beat
+            │   └── The Beatles (12 CDs)
+            ├── chordlab
+            │   ├── Carole King (1 CD)
+            │   ├── Queen (2 CDs)
+            │   └── The Beatles (12 CDs)
+            ├── keylab
+            │   ├── Carole King (1 CD)
+            │   ├── Queen (2 CDs)
+            │   └── The Beatles (12 CDs)
+            └── seglab
+                ├── Carole King (1 CD)
+                ├── Michael Jackson (2 CDs)
+                ├── Queen (2 CDs)
+                └── The Beatles (12 CDs)
     """
 
-    url = "https://magenta.tensorflow.org/datasets/maestro"
+    url = "http://isophonics.net/"
 
-    duration = 717232.49  # Dataset duration (s), 199 hours, including training, 
-    # validation, and testing.
+    duration = 54184.58  # Dataset duration (s), 15 hours.
 
     def __init__(
         self, 
@@ -59,7 +80,6 @@ class MAESTRO(Dataset):
         crop: Optional[callable] = RandomCrop(clip_duration=10., end_pad=9.9),
         transform: Optional[callable] = Mono(),
         target_types: bool = True,
-        extend_pedal: bool = True,
         target_transform: Optional[callable] = PianoRoll(fps=100, pitches_num=128),
     ):
 
@@ -68,15 +88,39 @@ class MAESTRO(Dataset):
         self.sr = sr
         self.crop = crop
         self.target_types = target_types
-        self.extend_pedal = extend_pedal
         self.transform = transform
         self.target_transform = target_transform
 
-        meta_csv = Path(self.root, "maestro-v3.0.0.csv")
+        labels_dir = Path(self.root, "annotations", "chordlab")
+        label_paths = sorted(list(Path(labels_dir).rglob('*.lab')))
 
-        self.meta_dict = self.load_meta(meta_csv)
+        audios_dir = Path(self.root, "audios")
+        audio_names = sorted(os.listdir(audios_dir))
         
+        audio_paths = []
+
+        from IPython import embed; embed(using=False); os._exit(0)
+        for label_path in label_paths:
+
+            name = str(Path(label_path.stem))
+            print(name)
+            audio_name = difflib.get_close_matches(name, audio_names)[0]
+            audio_path = Path(audios_dir, audio_name)
+            audio_paths.append(audio_path)
+
+        meta_dict = {
+            "audio_path": audio_paths,
+            "label_path": label_paths
+        }
+
+        from IPython import embed; embed(using=False); os._exit(0)
+            
+
+        # meta_dict = {}
+
     def __getitem__(self, index: int) -> dict:
+
+        from IPython import embed; embed(using=False); os._exit(0)
 
         audio_path = Path(self.root, self.meta_dict["audio_name"][index])
         midi_path = Path(self.root, self.meta_dict["midi_name"][index]) 

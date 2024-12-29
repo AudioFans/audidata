@@ -1,17 +1,15 @@
-from __future__ import annotations
 import os
 import re
 from pathlib import Path
-from typing_extensions import Literal
+from typing import Optional, Union
 import librosa
 import numpy as np
 from torch.utils.data import Dataset
+import time
 
 from audidata.io.audio import load
 from audidata.io.crops import StartCrop
-from audidata.transforms.audio import Mono
-from audidata.utils import call
-from audidata.transforms.onehot import OneHot
+from audidata.transforms.audio import ToMono
 
 
 class GTZAN(Dataset):
@@ -36,26 +34,26 @@ class GTZAN(Dataset):
             └── rock (100 files)
     """
 
-    URL = "http://marsyas.info/index.html"
+    url = "http://marsyas.info/index.html"
 
-    DURATION = 30024.07  # Dataset duration (s), including training, validation, and testing.
+    duration = 30024.07  # Dataset duration (s), including training, validation, and testing.
 
-    LABELS = ["blues", "classical", "country", "disco", "hiphop", "jazz", 
+    labels = ["blues", "classical", "country", "disco", "hiphop", "jazz", 
         "metal", "pop", "reggae", "rock"]
 
-    CLASSES_NUM = len(LABELS)
-    LB_TO_IX = {lb: ix for ix, lb in enumerate(LABELS)}
-    IX_TO_LB = {ix: lb for ix, lb in enumerate(LABELS)}
+    classes_num = len(labels)
+    lb_to_ix = {lb: ix for ix, lb in enumerate(labels)}
+    ix_to_lb = {ix: lb for ix, lb in enumerate(labels)}
 
     def __init__(
         self, 
         root: str = None, 
-        split: Literal["train", "test"] = "train",
+        split: Union["train", "test"] = "train",
         test_fold: int = 0,  # E.g., fold 0 is used for testing. Fold 1 - 9 are used for training.
         sr: float = 16000,  # Sampling rate
-        crop: None | callable = StartCrop(clip_duration=30.),
-        transform: None | callable = Mono(),
-        target_transform: None | callable = OneHot(classes_num=CLASSES_NUM),
+        crop: Optional[callable] = StartCrop(clip_duration=30.),
+        transform: Optional[callable] = ToMono(),
+        target_transform: Optional[callable] = None
     ) -> None:
     
         self.root = root
@@ -66,10 +64,6 @@ class GTZAN(Dataset):
         self.transform = transform
         self.target_transform = target_transform
 
-        self.labels = GTZAN.LABELS
-        self.lb_to_ix = GTZAN.LB_TO_IX
-        self.ix_to_lb = GTZAN.IX_TO_LB
-
         if not Path(root).exists():
             raise "Please download the GTZAN dataset from {} (Invalid anymore. Please search a source)".format(GTZAN.url)
 
@@ -77,21 +71,23 @@ class GTZAN(Dataset):
 
     def __getitem__(self, index: int) -> dict:
 
-        audio_path = str(self.meta_dict["audio_path"][index])
+        audio_path = self.meta_dict["audio_path"][index]
         label = self.meta_dict["label"][index]
 
         full_data = {
-            "dataset_name": "GTZAN",
-            "audio_path": audio_path,
+            "dataset_name": "MUSDB18HQ",
+            "audio_path": str(audio_path),
         }
 
-        # Load audio data
-        audio_data = self.load_audio_data(path=audio_path)
+        t1 = time.time()
+        # Load audio
+        audio_data = self.load_audio(path=audio_path)
         full_data.update(audio_data)
 
-        # Load target data
-        target_data = self.load_target_data(label=label)
+        # Load target
+        target_data = self.load_target(label=label)
         full_data.update(target_data)
+        print("a1", time.time() - t1)
 
         return full_data
 
@@ -105,6 +101,8 @@ class GTZAN(Dataset):
         r"""Load metadata of the GTZAN dataset.
         """
 
+        labels = GTZAN.labels
+
         meta_dict = {
             "label": [],
             "audio_name": [],
@@ -113,14 +111,14 @@ class GTZAN(Dataset):
 
         audios_dir = Path(self.root, "genres")
 
-        for genre in self.labels:
+        for genre in labels:
 
             audio_names = sorted(os.listdir(Path(audios_dir, genre)))
-            # E.g., len(audio_names) = 1000
+            # len(audio_names) = 1000
 
             train_audio_names, test_audio_names = self.split_train_test(audio_names)
-            # E.g., len(train_audio_names) = 900
-            # E.g., len(test_audio_names) = 100
+            # len(train_audio_names) = 900
+            # len(test_audio_names) = 100
 
             if self.split == "train":
                 filtered_audio_names = train_audio_names
@@ -159,7 +157,7 @@ class GTZAN(Dataset):
 
         return train_audio_names, test_audio_names
 
-    def load_audio_data(self, path: str) -> dict:
+    def load_audio(self, path: str) -> dict:
 
         audio_duration = librosa.get_duration(path=path)
 
@@ -167,9 +165,8 @@ class GTZAN(Dataset):
             start_time, clip_duration = self.crop(audio_duration=audio_duration)
         else:
             start_time = 0.
-            clip_duration = audio_duration
+            duration = None
 
-        # Load a clip
         audio = load(
             path=path, 
             sr=self.sr, 
@@ -178,30 +175,70 @@ class GTZAN(Dataset):
         )
         # shape: (channels, audio_samples)
 
-        # Transform audio
-        if self.transform is not None:
-            audio = call(transform=self.transform, x=audio)
-
         data = {
             "audio": audio, 
             "start_time": start_time,
-            "duration": clip_duration
+            "duration": clip_duration if clip_duration else audio_duration
         }
+
+        if self.transform is not None:
+            data = self.transform(data)
 
         return data
 
-    def load_target_data(self, label: str) -> np.ndarray:
+    def load_target(self, label: str) -> np.ndarray:
 
-        target = self.lb_to_ix[label]
+        classes_num = GTZAN.classes_num
+        lb_to_ix = GTZAN.lb_to_ix
 
-        # Transform target
-        if self.target_transform:
-            target = call(transform=self.target_transform, x=target)
-            # target: (classes_num,)
+        target = np.zeros(classes_num, dtype="float32")
+        class_ix = lb_to_ix[label]
+        target[class_ix] = 1
+        # target: (classes_num,)
 
         data = {
-            "label": label,
-            "target": target
+            "target": target,
+            "label": label
         }
 
+        if self.target_transform:
+            data = self.target_transform(data)
+
         return data
+
+
+if __name__ == "__main__":
+    r"""Example.
+    """
+
+    from torch.utils.data import DataLoader
+
+    root = "/datasets/gtzan"
+
+    sr = 16000
+
+    dataset = GTZAN(
+        root=root,
+        split="train",
+        test_fold=0,
+        sr=sr
+    )
+
+    dataloader = DataLoader(dataset=dataset, batch_size=4)
+
+    for data in dataloader:
+        
+        n = 0
+        audio_path = data["audio_path"][n]
+        start_time = data["start_time"][n].cpu().numpy()
+        audio = data["audio"][n].cpu().numpy()
+        target = data["target"][n].cpu().numpy()
+        label = data["label"][n]
+        break
+
+    # ------ Visualize ------
+    print("audio_path:", audio_path)
+    print("start_time:", start_time)
+    print("audio:", audio.shape)
+    print("target:", target.shape)
+    print("label:", label)

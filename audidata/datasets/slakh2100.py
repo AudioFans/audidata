@@ -1,3 +1,4 @@
+from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 
@@ -11,7 +12,7 @@ from torch.utils.data._utils.collate import default_collate_fn_map
 
 from audidata.io.audio import load
 from audidata.io.crops import RandomCrop
-from audidata.transforms.audio import ToMono
+from audidata.transforms.audio import Mono
 from audidata.transforms.midi import PianoRoll
 from audidata.io.midi import read_single_track_midi, read_midi_beat
 from audidata.collate.base import collate_list_fn
@@ -61,7 +62,7 @@ class Slakh2100(Dataset):
         split: str = "train",
         sr: float = 16000,
         crop: Optional[callable] = RandomCrop(clip_duration=10., end_pad=9.9),
-        transform: Optional[callable] = ToMono(),
+        transform: Optional[callable] = Mono(),
         target: bool = True,
         extend_pedal: bool = True,
         target_transform: Optional[callable] = PianoRoll(fps=100, pitches_num=128),

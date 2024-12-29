@@ -4,35 +4,49 @@ import librosa
 import soundfile as sf
 
 
-class Mono:
+class ToMono:
     r"""Converts multi-channel audio to mono by averaging all channels.
 
     This transformation takes a multi-channel audio input and returns a mono audio
     by computing the mean across all channels.
+
+    Args:
+        None
+
+    Returns:
+        dict: A dictionary containing the mono audio under the key 'audio'.
     """
 
     def __init__(self):
         pass
 
-    def __call__(self, x: np.ndarray) -> np.ndarray:
-        return np.mean(x, axis=0, keepdims=True)
+    def __call__(self, data: dict) -> dict:
+        data["audio"] = np.mean(data["audio"], axis=0, keepdims=True)
+        return data
 
 
 class Normalize:
     r"""Normalizes the audio to have a maximum absolute value of 1.
 
     This transformation scales the audio so that its maximum absolute value is 1.
+
+    Args:
+        None
+
+    Returns:
+        dict: A dictionary containing the normalized audio under the key 'audio'.
     """
 
     def __init__(self):
         pass
 
-    def __call__(self, x: np.ndarray) -> np.ndarray:
-        max_value = np.max(np.abs(x))
-        return x / max(max_value, 1e-8)
+    def __call__(self, data: dict) -> dict:
+        audio = data["audio"]
+        audio = audio / np.max(np.abs(audio))
+        data["audio"] = audio
+        return data
 
 
-# TODO
 class PitchShift:
     r"""Applies pitch shifting to the audio.
 

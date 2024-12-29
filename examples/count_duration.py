@@ -196,6 +196,57 @@ def slakh2100():
     from IPython import embed; embed(using=False); os._exit(0)
 
 
+def isophonics():
+
+    root = "/datasets/isophonics"
+
+    audio_paths = sorted(list(Path(root).rglob("*.mp3")))
+
+    durations = []
+    sample_rates = []
+
+    for audio_path in audio_paths:
+
+        duration = librosa.get_duration(path=audio_path)
+        durations.append(duration)
+
+        sr = librosa.get_samplerate(path=audio_path)
+        sample_rates.append(sr)
+
+    print("------ Isophonics ------")
+    print("Files num: {}".format(len(durations)))
+    print("Duration: {:.2f} s".format(np.sum(durations)))
+
+    fig_path = "results/isophonics.pdf"
+    plot_histogram(durations=durations, title="Isophonics", fig_path=fig_path)
+    
+
+def voicebank_demand():
+
+    root = "/datasets/voicebank-demand"
+
+    audio_paths = sorted(list(Path(root).rglob("*.wav")))
+
+    durations = []
+    sample_rates = []
+
+    for audio_path in audio_paths:
+
+        duration = librosa.get_duration(path=audio_path)
+        durations.append(duration)
+
+        sr = librosa.get_samplerate(path=audio_path)
+        sample_rates.append(sr)
+
+    print("------ Isophonics ------")
+    print("Files num: {}".format(len(durations)))
+    print("Duration: {:.2f} s".format(np.sum(durations)))
+
+    fig_path = "results/voicebank-demand.pdf"
+    plot_histogram(durations=durations, title="Voicebank-Demand", fig_path=fig_path)
+    from IPython import embed; embed(using=False); os._exit(0)
+
+
 def plot_histogram(durations: list[float], title: str, fig_path: str):
     
     plt.figure()
@@ -221,4 +272,6 @@ if __name__ == '__main__':
     # audiocaps()
     # wavcaps()
     # shutterstock()
-    slakh2100() 
+    # slakh2100()
+    # isophonics()
+    voicebank_demand()

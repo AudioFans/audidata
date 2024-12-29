@@ -1,3 +1,4 @@
+from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 
@@ -10,7 +11,7 @@ from torch.utils.data._utils.collate import default_collate_fn_map
 
 from audidata.io.audio import load
 from audidata.io.crops import RandomCrop
-from audidata.transforms.audio import ToMono
+from audidata.transforms.audio import Mono
 from audidata.transforms.midi import MultiTrackPianoRoll
 from audidata.io.midi import read_multi_track_midi
 from audidata.collate.base import collate_list_fn
@@ -52,7 +53,7 @@ class URMP(Dataset):
         split: str = "train",
         sr: int = 44100,
         crop: Optional[callable] = RandomCrop(clip_duration=10.),
-        transform: Optional[callable] = ToMono(),
+        transform: Optional[callable] = Mono(),
         target: bool = True,
         target_transform: Optional[callable] = MultiTrackPianoRoll(fps=100, pitches_num=128),
     ):

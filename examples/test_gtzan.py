@@ -1,6 +1,8 @@
 from torch.utils.data import DataLoader
 
 from audidata.datasets import GTZAN
+from audidata.io import StartCrop
+from audidata.transforms import Mono, OneHot
 
 
 if __name__ == '__main__':
@@ -26,15 +28,20 @@ if __name__ == '__main__':
 
     root = "/datasets/gtzan"
 
-    sr = 16000
-
     dataset = GTZAN(
         root=root,
         split="train",
         test_fold=0,
-        sr=sr
+        sr=24000,
+        crop=StartCrop(clip_duration=30.),
+        transform=Mono(),
+        target_transform=OneHot(classes_num=GTZAN.CLASSES_NUM)
     )
 
+    # Example of fetch a data
+    print(dataset[0])
+
+    # Example of dataloader
     dataloader = DataLoader(dataset=dataset, batch_size=4)
 
     for data in dataloader:

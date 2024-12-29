@@ -1,3 +1,4 @@
+from __future__ import annotations
 import os
 import random
 from pathlib import Path
@@ -10,7 +11,7 @@ from torch.utils.data import Dataset
 
 from audidata.io.audio import load
 from audidata.io.crops import StartCrop
-from audidata.transforms.audio import ToMono
+from audidata.transforms.audio import Mono
 
 
 class MagnaTagATune(Dataset):
@@ -48,7 +49,7 @@ class MagnaTagATune(Dataset):
             split: ["train", "test", "val"] = "train",
             sr: int = 16000,
             crop: Optional[callable] = StartCrop(clip_duration=29.),
-            transform: Optional[callable] = ToMono(),
+            transform: Optional[callable] = Mono(),
             target_transform: Optional[callable] = None
     ):
 
