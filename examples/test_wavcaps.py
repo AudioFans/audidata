@@ -2,6 +2,7 @@ from torch.utils.data import DataLoader
 
 from audidata.datasets import WavCaps
 from audidata.io.crops import StartCrop
+from audidata.transforms import TextNormalization
 
 
 if __name__ == '__main__':
@@ -38,7 +39,8 @@ if __name__ == '__main__':
     dataset = WavCaps(
         root=root,
         sr=32000,
-        crop=StartCrop(clip_duration=10.)
+        crop=StartCrop(clip_duration=10.),
+        target_transform=TextNormalization()
     )
 
     dataloader = DataLoader(dataset=dataset, batch_size=4)
@@ -50,6 +52,7 @@ if __name__ == '__main__':
         start_time = data["start_time"][n].cpu().numpy()
         audio = data["audio"][n].cpu().numpy()
         caption = data["caption"][n]
+        target = data["target"][n]
         break
 
     # ------ Visualize ------
@@ -57,3 +60,4 @@ if __name__ == '__main__':
     print("start_time:", start_time)
     print("audio:", audio.shape)
     print("caption:", caption)
+    print("target:", target)

@@ -16,17 +16,18 @@ from audidata.utils import call
 
 
 class WavCaps(Dataset):
-    r"""WavCaps [1] is an audio caption dataset containing 402,958 audio samples. 
-    Each audio has 1 caption. Most audio samples are less than 10 s, with the 
-    longest audio of 12.39 hours. Audios are sampled at 32000 Hz. After 
-    decompression, the dataset is 770 GB.
+    r"""WavCaps [1] is an audio caption dataset containing 402,958 audio 
+    samples, each with 1 caption. The total duration is 7,545 hours. Most audio 
+    samples are less than 10 seconds, with the longest audio lasting 12.39 
+    hours. The audio files are mono and sampled at 32,000 Hz. After 
+    decompression, the dataset size is 770 GB.
 
     [1] X. Mei, et al., WavCaps: A ChatGPT-Assisted Weakly-Labelled Audio 
     Captioning Dataset for Audio-Language Multimodal Research, 2023
 
     After decompression, the dataset looks like:
 
-        dataset_root (131 GB)
+        wavcaps (131 GB)
         ├── Zip_files
         │   ├── AudioSet_SL (108,137 flac)
         │   ├── BBC_Sound_Effects (31,201 flac)
@@ -50,7 +51,7 @@ class WavCaps(Dataset):
 
     URL = "https://zenodo.org/records/3490684"
 
-    DURATION = 27161470.93  # Dataset duration (s), 7545 hours
+    DURATION = 27161470.93  # Dataset duration (s), 7,545 hours
 
     def __init__(
         self, 
@@ -67,6 +68,9 @@ class WavCaps(Dataset):
         self.transform = transform
         self.target_transform = target_transform
 
+        if not Path(self.root).exists():
+            raise Exception(f"{self.root} does not exist. Please download the dataset from {GTZAN.URL}")
+
         self.audios_dir = Path(self.root, "Zip_files")
         self.jsons_dir = Path(self.root, "json_files")
         paths = sorted(list(Path(self.jsons_dir).rglob("*.json")))
@@ -76,20 +80,16 @@ class WavCaps(Dataset):
 
         self.meta_dict = self.load_meta(json_paths, blacklist_paths)
 
-        if not Path(root).exists():
-            raise "Please download the WavCaps dataset from {}".format(WavCaps.url)
-
     def __getitem__(self, index: int) -> dict:
 
         caption = self.meta_dict["caption"][index]
-        audio_name = self.meta_dict["audio_name"][index]
+        audio_path = self.meta_dict["audio_path"][index]
         subdataset = self.meta_dict["subdataset"][index]
-        audio_path = Path(self.audios_dir, subdataset, audio_name)
 
         full_data = {
             "dataset_name": "WavCaps",
             "subdataset": subdataset,
-            "audio_path": str(audio_path),
+            "audio_path": audio_path,
         }
 
         # Load audio data
@@ -113,7 +113,7 @@ class WavCaps(Dataset):
         black_names = self.get_black_names(blacklist_paths)
         # black_names: dict
 
-        meta_dict = {"subdataset": [], "audio_name": [], "caption": []}
+        meta_dict = {"audio_name": [], "audio_path": [], "subdataset": [], "caption": []}
 
         for json_path in json_paths:
             subdataset = Path(json_path).parent.name
@@ -122,8 +122,13 @@ class WavCaps(Dataset):
                 for item in json_obj["data"]:
                     name = Path(item["id"]).stem
                     if name not in black_names.keys():
+
+                        audio_name = "{}.flac".format(name)
+                        audio_path = str(Path(self.audios_dir, subdataset, audio_name))
+
+                        meta_dict["audio_name"].append(audio_name)
+                        meta_dict["audio_path"].append(audio_path)
                         meta_dict["subdataset"].append(subdataset)
-                        meta_dict["audio_name"].append("{}.flac".format(name))
                         meta_dict["caption"].append(item["caption"])
 
         return meta_dict
@@ -165,8 +170,7 @@ class WavCaps(Dataset):
             sr=self.sr, 
             offset=start_time, 
             duration=clip_duration
-        )
-        # shape: (channels, audio_samples)
+        )  # shape: (channels_num, audio_samples)
 
         # Transform audio
         if self.transform is not None:

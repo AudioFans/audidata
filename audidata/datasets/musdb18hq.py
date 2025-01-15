@@ -1,28 +1,28 @@
 from __future__ import annotations
+
 import os
-import random
 from pathlib import Path
-from typing import Optional, NoReturn, Union
-from typing_extensions import Literal
+from typing import Union
 
 import librosa
 import numpy as np
-from torch.utils.data import Dataset
-
 from audidata.io.audio import load
 from audidata.io.crops import RandomCrop
+from torch.utils.data import Dataset
+from typing_extensions import Literal
 
 
 class MUSDB18HQ(Dataset):
-    r"""MUSDB18HQ [1] is a dataset containing 100 training audios and 50 
-    testing audios with vocals, bass, drums, other stems. Audios are stereo and 
-    sampled at 48,000 Hz. Dataset size is 30 GB.
+    r"""MUSDB18HQ [1] is a dataset containing 100 training audio files and 50 
+    testing audio files, each with vocals, bass, drums, and other stems. The 
+    total duration is 9.8 hours. The audio is stereo and sampled at 48,000 Hz. 
+    After decompression, the dataset size is 30 GB.
 
     [1] https://zenodo.org/records/3338373
 
     The dataset looks like:
 
-        dataset_root (30 GB)
+        musdb18hq (30 GB)
         ├── train (100 files)
         │   ├── A Classic Education - NightOwl
         │   │   ├── bass.wav
@@ -43,9 +43,9 @@ class MUSDB18HQ(Dataset):
             └── ...
     """
 
-    url = "https://zenodo.org/records/3338373"
+    URL = "https://zenodo.org/records/3338373"
 
-    duration = 35359.56  # Dataset duration (s), 9.8 hours, including training, 
+    DURATION = 35359.56  # Dataset duration (s), 9.8 hours, including training, 
     # valdiation, and testing
 
     def __init__(
@@ -59,13 +59,12 @@ class MUSDB18HQ(Dataset):
         stem_transform: None | callable | list[callable] = None,
         group_transform: None | callable | list[callable] = None,
         mixture_transform: None | callable | list[callable] = None,
-    ):
+    ) -> None:
         r"""
-        Args:
-            time_align: str. "strict" indicates all stems are aligned (from the 
-                same song and have the same start time). "group" indictates 
-                target stems / background stems are aligned. "random" indicates 
-                all stems are from different songs with different start time.
+        time_align: str. "strict" indicates all stems are aligned (from the 
+            same song and have the same start time). "group" indictates 
+            target stems / background stems are aligned. "random" indicates 
+            all stems are from different songs with different start time.
         """
 
         self.stems = ["bass", "drums", "other", "vocals"]
@@ -81,7 +80,7 @@ class MUSDB18HQ(Dataset):
         self.mixture_transform = group_transform
 
         if not Path(self.root).exists():
-            raise Exception("Please download the MUSDB18HQ dataset from {}".format(MUSDB18HQ.url))
+            raise Exception(f"{self.root} does not exist. Please download the dataset from {MUSDB18HQ.URL}")
 
         self.audios_dir = Path(self.root, self.split)
         self.list_names = sorted(os.listdir(self.audios_dir))

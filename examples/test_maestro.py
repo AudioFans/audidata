@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 
 from audidata.datasets import MAESTRO
 from audidata.io.crops import RandomCrop
-from audidata.transforms.audio import ToMono
+from audidata.transforms.audio import Mono
 from audidata.transforms.midi import PianoRoll
 
 
@@ -18,7 +18,7 @@ if __name__ == '__main__':
 
     The dataset looks like:
 
-        dataset_root (131 GB)
+        maestro-v3.0.0 (131 GB)
         ├── 2004 (132 songs, wav + flac + midi + tsv)
         ├── 2006 (115 songs, wav + flac + midi + tsv)
         ├── 2008 (147 songs, wav + flac + midi + tsv)
@@ -37,27 +37,23 @@ if __name__ == '__main__':
 
     root = "/datasets/maestro-v3.0.0"
 
-    sr = 16000
-
     # Dataset
     dataset = MAESTRO(
         root=root,
         split="train",
-        sr=sr,
+        sr=44100,
         crop=RandomCrop(clip_duration=10., end_pad=9.9),
-        transform=ToMono(),
-        target_types=True,
+        transform=Mono(),
+        load_target=True,
         extend_pedal=True,
         target_transform=PianoRoll(fps=100, pitches_num=128),
     )
 
+    # Example of fetch a data
     print(dataset[0].keys())
 
-    dataloader = DataLoader(
-        dataset=dataset, 
-        batch_size=4, 
-        num_workers=0, 
-    )
+    # Example of dataloader
+    dataloader = DataLoader(dataset=dataset, batch_size=4)
 
     for data in dataloader:
 
@@ -78,11 +74,11 @@ if __name__ == '__main__':
 
     # Write audio
     out_path = "out.wav"
-    soundfile.write(file=out_path, data=audio.T, samplerate=sr)
+    soundfile.write(file=out_path, data=audio.T, samplerate=dataset.sr)
     print("Write out audio to {}".format(out_path))
 
     # Mel spectrogram
-    mel = librosa.feature.melspectrogram(y=audio[0], sr=sr, n_fft=2048, 
+    mel = librosa.feature.melspectrogram(y=audio[0], sr=dataset.sr, n_fft=2048, 
         hop_length=160, n_mels=229, fmin=0, fmax=8000)
 
     # Plot

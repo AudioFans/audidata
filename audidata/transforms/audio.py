@@ -32,6 +32,33 @@ class Normalize:
         return x / max(max_value, 1e-8)
 
 
+class TimeShift:
+    r"""Randomly shift audio."""
+    def __init__(
+        self, 
+        sr: float, 
+        shift: tuple[float, float] = (-0.2, 0.2)  # seconds
+    ):
+
+        self.sr = sr
+        self.left_shift, self.right_shift = shift
+        
+    def __call__(self, x: np.ndarray) -> np.ndarray:
+
+        C, T = x.shape
+        shift_time = random.uniform(a=self.left_shift, b=self.right_shift)
+        M = round(self.sr * shift_time)
+
+        new_x = np.zeros_like(x)
+
+        if M <= 0:
+            new_x[:, 0 : T - abs(M)] = x[:, abs(M) :]
+        else:
+            new_x[:, M :] = x[:, 0 : T - M]
+            
+        return new_x
+
+
 # TODO
 class PitchShift:
     r"""Applies pitch shifting to the audio.

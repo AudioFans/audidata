@@ -13,7 +13,7 @@ if __name__ == '__main__':
 
     The dataset looks like:
 
-        dataset_root (7.3 GB)
+        clotho (7.3 GB)
         ├── clotho_audio_development (2894 wavs)
         ├── clotho_audio_evaluation (1046 wavs)
         ├── clotho_captions_development.csv
@@ -52,6 +52,7 @@ if __name__ == '__main__':
         start_time = data["start_time"][n].cpu().numpy()
         audio = data["audio"][n].cpu().numpy()
         caption = data["caption"][n]
+        target = data["target"][n]
         break
 
     # ------ Visualize ------
@@ -59,3 +60,4 @@ if __name__ == '__main__':
     print("start_time:", start_time)
     print("audio:", audio.shape)
     print("caption:", caption)
+    print("target:", target)

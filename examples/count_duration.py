@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 import librosa
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 
 
@@ -167,6 +168,15 @@ def shutterstock():
 
     fig_path = "results/shutterstock.pdf"
     plot_histogram(durations=durations, title="Shutterstock", fig_path=fig_path)
+
+    meta_csv = Path(root, "28kdescriptions.csv")
+    df = pd.read_csv(meta_csv, sep=',')
+    
+    caption_lens = []
+
+    for caption in df["descri"].values:
+        caption_lens.append(len(caption.split()))
+
     from IPython import embed; embed(using=False); os._exit(0)
 
 
@@ -244,6 +254,57 @@ def voicebank_demand():
 
     fig_path = "results/voicebank-demand.pdf"
     plot_histogram(durations=durations, title="Voicebank-Demand", fig_path=fig_path)
+
+
+def ljspeech():
+
+    root = "/datasets/LJSpeech-1.1"
+
+    audio_paths = sorted(list(Path(root).rglob("*.wav")))
+
+    durations = []
+    sample_rates = []
+
+    for audio_path in audio_paths:
+
+        duration = librosa.get_duration(path=audio_path)
+        durations.append(duration)
+
+        sr = librosa.get_samplerate(path=audio_path)
+        sample_rates.append(sr)
+
+    print("------ LJSpeech ------")
+    print("Files num: {}".format(len(durations)))
+    print("Duration: {:.2f} s".format(np.sum(durations)))
+
+    fig_path = "results/LJSpeech.pdf"
+    plot_histogram(durations=durations, title="LJSpeech", fig_path=fig_path)
+    from IPython import embed; embed(using=False); os._exit(0)
+
+
+def free_spoken_digit():
+
+    root = "/datasets/free-spoken-digit-dataset"
+
+    audio_paths = sorted(list(Path(root).rglob("*.wav")))
+
+    durations = []
+    sample_rates = []
+
+    for audio_path in audio_paths:
+
+        duration = librosa.get_duration(path=audio_path)
+        durations.append(duration)
+
+        sr = librosa.get_samplerate(path=audio_path)
+        sample_rates.append(sr)
+
+    print("------ Free Spoken Digit ------")
+    print("Files num: {}".format(len(durations)))
+    print("Duration: {:.2f} s".format(np.sum(durations)))
+
+    fig_path = "results/FreeSpokenDigit.pdf"
+    plot_histogram(durations=durations, title="Free Spoken Digit", fig_path=fig_path)
     from IPython import embed; embed(using=False); os._exit(0)
 
 
@@ -274,4 +335,6 @@ if __name__ == '__main__':
     # shutterstock()
     # slakh2100()
     # isophonics()
-    voicebank_demand()
+    # voicebank_demand()
+    # ljspeech()
+    free_spoken_digit()

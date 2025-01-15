@@ -1,28 +1,31 @@
 from __future__ import annotations
+
 import os
 import re
 from pathlib import Path
-from typing_extensions import Literal
+
 import librosa
 import numpy as np
-from torch.utils.data import Dataset
-
 from audidata.io.audio import load
 from audidata.io.crops import StartCrop
 from audidata.transforms.audio import Mono
-from audidata.utils import call
 from audidata.transforms.onehot import OneHot
+from audidata.utils import call
+from torch.utils.data import Dataset
+from typing_extensions import Literal
 
 
 class GTZAN(Dataset):
-    r"""GTZAN [1] is a music dataset containing 1000 30-second music. 
-    GTZAN contains 10 genres. Audios are sampled at 22,050 Hz. Dataset size is 1.3 GB. 
+    r"""GTZAN [1] is a music dataset containing 1,000 30-second audio clips. 
+    The total duration is 8.3 hours. GTZAN includes 10 genres. All audio files 
+    are mono sampled at 22,050 Hz. After decompression, the dataset size is 
+    1.3 GB.
 
     [1] Tzanetakis, G., et al., Musical genre classification of audio signals. 2002
 
     The dataset looks like:
 
-        dataset_root (1.3 GB)
+        gtzan (1.3 GB)
         └── genres
             ├── blues (100 files)
             ├── classical (100 files)
@@ -36,9 +39,10 @@ class GTZAN(Dataset):
             └── rock (100 files)
     """
 
-    URL = "http://marsyas.info/index.html"
+    # The original webpage http://marsyas.info/index.html is no longer available anymore.
+    URL = "https://huggingface.co/datasets/qiuqiangkong/gtzan/resolve/main/genres.tar.gz?download=true"
 
-    DURATION = 30024.07  # Dataset duration (s), including training, validation, and testing.
+    DURATION = 30024.07  # Dataset duration (s), 8.3 hours
 
     LABELS = ["blues", "classical", "country", "disco", "hiphop", "jazz", 
         "metal", "pop", "reggae", "rock"]
@@ -52,7 +56,7 @@ class GTZAN(Dataset):
         root: str = None, 
         split: Literal["train", "test"] = "train",
         test_fold: int = 0,  # E.g., fold 0 is used for testing. Fold 1 - 9 are used for training.
-        sr: float = 16000,  # Sampling rate
+        sr: float = 22050,  # Sampling rate
         crop: None | callable = StartCrop(clip_duration=30.),
         transform: None | callable = Mono(),
         target_transform: None | callable = OneHot(classes_num=CLASSES_NUM),
@@ -70,8 +74,8 @@ class GTZAN(Dataset):
         self.lb_to_ix = GTZAN.LB_TO_IX
         self.ix_to_lb = GTZAN.IX_TO_LB
 
-        if not Path(root).exists():
-            raise "Please download the GTZAN dataset from {} (Invalid anymore. Please search a source)".format(GTZAN.url)
+        if not Path(self.root).exists():
+            raise Exception(f"{self.root} does not exist. Please download the dataset from {GTZAN.URL}")
 
         self.meta_dict = self.load_meta()
 
@@ -106,9 +110,9 @@ class GTZAN(Dataset):
         """
 
         meta_dict = {
-            "label": [],
             "audio_name": [],
-            "audio_path": []
+            "audio_path": [],
+            "label": [],
         }
 
         audios_dir = Path(self.root, "genres")
@@ -128,13 +132,16 @@ class GTZAN(Dataset):
             elif self.split == "test":
                 filtered_audio_names = test_audio_names
 
+            else:
+                raise ValueError(self.split)
+
             for audio_name in filtered_audio_names:
 
-                audio_path = Path(audios_dir, genre, audio_name)
+                audio_path = str(Path(audios_dir, genre, audio_name))
 
-                meta_dict["label"].append(genre)
                 meta_dict["audio_name"].append(audio_name)
                 meta_dict["audio_path"].append(audio_path)
+                meta_dict["label"].append(genre)
 
         return meta_dict
 
@@ -176,7 +183,7 @@ class GTZAN(Dataset):
             offset=start_time, 
             duration=clip_duration
         )
-        # shape: (channels, audio_samples)
+        # shape: (channels_num, audio_samples)
 
         # Transform audio
         if self.transform is not None:
@@ -190,18 +197,17 @@ class GTZAN(Dataset):
 
         return data
 
-    def load_target_data(self, label: str) -> np.ndarray:
+    def load_target_data(self, label: str) -> dict:
 
         target = self.lb_to_ix[label]
 
         # Transform target
         if self.target_transform:
             target = call(transform=self.target_transform, x=target)
-            # target: (classes_num,)
 
         data = {
             "label": label,
-            "target": target
+            "target": target  # shape: (classes_num,)
         }
 
         return data
