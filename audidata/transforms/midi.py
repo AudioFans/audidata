@@ -29,7 +29,7 @@ class PianoRoll:
         notes = data["note"]
         pedals = data["pedal"]
         start_time = data["start_time"]
-        clip_duration = data["clip_duration"]
+        clip_duration = data["duration"]
 
         clip_frames = round(self.fps * clip_duration) + 1
 

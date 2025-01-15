@@ -47,6 +47,7 @@ if __name__ == '__main__':
         start_time = data["start_time"][n].cpu().numpy()
         audio = data["audio"][n].cpu().numpy()
         caption = data["caption"][n]
+        target = data["target"][n]
         break
 
     # ------ Visualize ------
@@ -54,3 +55,4 @@ if __name__ == '__main__':
     print("start_time:", start_time)
     print("audio:", audio.shape)
     print("caption:", caption)
+    print("target:", target)

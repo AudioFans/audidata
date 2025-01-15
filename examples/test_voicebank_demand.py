@@ -4,7 +4,7 @@ from torch.utils.data import DataLoader
 from audidata.io.crops import RandomCrop
 from audidata.datasets import VoicebankDemand
 from audidata.samplers import InfiniteSampler
-from audidata.transforms import ToMono, Normalize
+from audidata.transforms import Mono, Normalize
 
 
 if __name__ == "__main__":
@@ -34,7 +34,7 @@ if __name__ == "__main__":
         split="train",
         sr=sr,
         crop=RandomCrop(clip_duration=2., end_pad=0.),
-        stem_transform=[ToMono(), Normalize()]
+        stem_transform=[Mono(), Normalize()]
     )
 
     # Example of get one data

@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name="audidata", # Replace with your own username
-    version="0.0.1",
+    version="0.0.2",
     author="Qiuqiang Kong",
     author_email="qiuqiangkong@gmail.com",
     description="Audio dataloaders",
@@ -19,6 +19,6 @@ setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    install_requires=["numpy", "torch", "torchaudio", "pretty_midi", "pandas"],
+    install_requires=["numpy", "torch", "torchaudio", "pretty_midi", "pandas", "pyyaml"],
     python_requires='>=3.5',
 )

@@ -8,11 +8,12 @@ from audidata.transforms import Mono, OneHot
 if __name__ == '__main__':
     r"""Example. 
 
-    GTZAN dataset: http://marsyas.info/index.html
+    The original webpage http://marsyas.info/index.html is no longer available anymore.
+    Download: https://huggingface.co/datasets/qiuqiangkong/gtzan/resolve/main/genres.tar.gz?download=true
 
     The dataset looks like:
 
-        dataset_root (1.3 GB)
+        gtzan (1.3 GB)
         └── genres
             ├── blues (100 files)
             ├── classical (100 files)
@@ -32,7 +33,7 @@ if __name__ == '__main__':
         root=root,
         split="train",
         test_fold=0,
-        sr=24000,
+        sr=22050,
         crop=StartCrop(clip_duration=30.),
         transform=Mono(),
         target_transform=OneHot(classes_num=GTZAN.CLASSES_NUM)

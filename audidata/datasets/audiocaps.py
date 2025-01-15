@@ -1,31 +1,29 @@
 from __future__ import annotations
-import os
-import re
-import pandas as pd
+
 from pathlib import Path
 from typing import NoReturn
-from typing_extensions import Literal
 
 import librosa
-import numpy as np
-from torch.utils.data import Dataset
-
+import pandas as pd
 from audidata.io.audio import load
 from audidata.io.crops import StartCrop
 from audidata.transforms.audio import Mono
 from audidata.utils import call
+from torch.utils.data import Dataset
+from typing_extensions import Literal
 
 
 class AudioCaps(Dataset):
-    r"""AudioCaps [1] is an audio caption dataset containing 51,308 audio clips.
-    Each audio clip contains one caption. Audio samples are of ~10 seconds. 
-    Audios are sampled at 32,000 kHz. After decompression, the dataset size is 131 GB. 
+    r"""AudioCaps [1] is an audio caption dataset containing 51,308 audio clips, 
+    each accompanied by one caption. The audio samples are approximately 10 
+    seconds long and are mono sampled at 32,000 Hz. After decompression, the 
+    dataset size is 131 GB.
 
     [1] C. D. Kim, et al. AudioCaps: Generating Captions for Audios in The Wild, NAACL-HLT 2019
 
     The dataset looks like:
 
-        dataset_root (131 GB)
+        audiocaps (131 GB)
         ├── train (49274 files)
         ├── val (494 files)
         ├── test (957 files)
@@ -63,18 +61,17 @@ class AudioCaps(Dataset):
 
         self.meta_dict = self.load_meta(self.meta_csv)
 
-        if not Path(root).exists():
-            raise "Please download the AudioCaps dataset from {}".format(AudioCaps.url)
+        if not Path(self.root).exists():
+            raise Exception(f"{self.root} does not exist. Please download the dataset from {AudioCaps.URL}")
 
     def __getitem__(self, index: int) -> dict:
 
+        audio_path = self.meta_dict["audio_path"][index]
         caption = self.meta_dict["caption"][index]
-        audio_name = self.meta_dict["audio_name"][index]
-        audio_path = Path(self.audios_dir, audio_name)
-
+        
         full_data = {
             "dataset_name": "AudioCaps",
-            "audio_path": str(audio_path),
+            "audio_path": audio_path,
         }
 
         # Load audio data
@@ -95,13 +92,23 @@ class AudioCaps(Dataset):
 
     def load_meta(self, meta_csv: str) -> dict:
 
-        meta_dict = {"audiocap_id": [], "audio_name": [], "caption": []}
-
         df = pd.read_csv(meta_csv, sep=',')
 
+        meta_dict = {
+            "audio_name": [], 
+            "audio_path": [],
+            "audiocap_id": [], 
+            "caption": []
+        }
+
         for n in range(len(df)):
+            
+            audio_name = "Y{}.wav".format(df["youtube_id"][n])
+            audio_path = str(Path(self.audios_dir, audio_name))
+
+            meta_dict["audio_name"].append(audio_name)
+            meta_dict["audio_path"].append(audio_path)
             meta_dict["audiocap_id"].append(df["audiocap_id"][n])
-            meta_dict["audio_name"].append("Y{}.wav".format(df["youtube_id"][n]))
             meta_dict["caption"].append(df["caption"][n])
 
         return meta_dict
@@ -122,8 +129,7 @@ class AudioCaps(Dataset):
             sr=self.sr, 
             offset=start_time, 
             duration=clip_duration
-        )
-        # shape: (channels, audio_samples)
+        )  # shape: (channels_num, audio_samples)
 
         # Transform audio
         if self.transform is not None:

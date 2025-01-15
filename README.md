@@ -85,3 +85,7 @@ audidata
 └── pyproject.toml
 
 </pre>
+
+## License
+
+MIT

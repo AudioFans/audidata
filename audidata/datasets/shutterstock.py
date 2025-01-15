@@ -1,23 +1,24 @@
 from __future__ import annotations
+
 import os
-import re
-import pandas as pd
 from pathlib import Path
-from typing import Optional, Union
 
 import librosa
 import numpy as np
-from torch.utils.data import Dataset
-
+import pandas as pd
 from audidata.io.audio import load
 from audidata.io.crops import RandomCrop
 from audidata.transforms.audio import Mono
+from audidata.utils import call
+from torch.utils.data import Dataset
 
 
 class Shutterstock(Dataset):
-    r"""Shutterstock is a private audio-text pairs music dataset consisting 
-    28,558 audio clips. Each audio sample has 1 captions. Audio samples are of 
-    5 to 1415 s. Most audio samples are of 1 ~ 3 minutes. Audios are sampled at 
+    r"""Shutterstock is a private audio-text pairs music dataset consisting of 
+    28,558 audio clips. The total duration is 1,250 hours. Each audio file has 
+    1 caption, with captions containing 5 to 37 words. The durations of the 
+    audio files range from 5 seconds to 1,415 seconds, with most audio samples 
+    lasting between 1 and 3 minutes. The audio files are stereo and sampled at 
     48,000 Hz. After decompression, the dataset size is 409 GB.
 
     After decompression, the dataset looks like:
@@ -28,15 +29,17 @@ class Shutterstock(Dataset):
 
     """
 
-    duration = 4502350.60  # Dataset duration (s), 1250 hours
+    URL = "https://www.shutterstock.com/"
+
+    DURATION = 4502350.60  # Dataset duration (s), 1,250 hours
 
     def __init__(
         self, 
         root: str = None, 
-        sr: float = 16000,  # Sampling rate
-        crop: Optional[callable] = RandomCrop(clip_duration=10.),
-        transform: Optional[callable] = Mono(),
-        target_transform: Optional[callable] = None
+        sr: float = 48000,  # Sampling rate
+        crop: None | callable = RandomCrop(clip_duration=10.),
+        transform: None | callable = Mono(),
+        target_transform: None | callable = None
     ) -> None:
     
         self.root = root
@@ -48,28 +51,27 @@ class Shutterstock(Dataset):
         self.meta_csv = Path(self.root, "28kdescriptions.csv")
         self.audios_dir = Path(self.root, "flac")
 
-        self.meta_dict = self.load_meta(self.meta_csv, self.audios_dir)
+        if not Path(self.root).exists():
+            raise Exception(f"{self.root} does not exist. Please download the dataset from {Shutterstock.URL}")
 
-        if not Path(root).exists():
-            raise "Please download the Shutterstock dataset from {}".format(Shutterstock.url)
+        self.meta_dict = self.load_meta(self.meta_csv, self.audios_dir)
 
     def __getitem__(self, index: int) -> dict:
 
+        audio_path = self.meta_dict["audio_path"][index]
         caption = self.meta_dict["caption"][index]
-        audio_name = self.meta_dict["audio_name"][index]
-        audio_path = Path(self.audios_dir, audio_name)
-
+        
         full_data = {
             "dataset_name": "Shutterstock",
-            "audio_path": str(audio_path),
+            "audio_path": audio_path,
         }
 
-        # Load audio
-        audio_data = self.load_audio(path=audio_path)
+        # Load audio data
+        audio_data = self.load_audio_data(path=audio_path)
         full_data.update(audio_data)
 
-        # Load target
-        target_data = self.load_target(caption=caption)
+        # Load target data
+        target_data = self.load_target_data(caption=caption)
         full_data.update(target_data)
 
         return full_data
@@ -85,20 +87,26 @@ class Shutterstock(Dataset):
         audio_names_dict = {str(Path(name).stem): True for name in os.listdir(audios_dir)}
 
         df = pd.read_csv(meta_csv, sep=',')
-        meta_dict = {"audio_name": [], "title": [], "caption": []}
+        meta_dict = {"audio_name": [], "audio_path": [], "title": [], "caption": []}
         
         for n in range(len(df)):
             
             audio_name = str(df["idds"].values[n])
 
-            if audio_name in audio_names_dict.keys():
-                meta_dict["audio_name"].append("{}.flac".format(audio_name))
-                meta_dict["title"].append(df["titles"].values[n])
-                meta_dict["caption"].append(df["descri"].values[n])
+            if audio_name not in audio_names_dict.keys():
+                continue
+
+            audio_name = "{}.flac".format(audio_name)
+            audio_path = str(Path(self.audios_dir, audio_name))
+
+            meta_dict["audio_name"].append(audio_name)
+            meta_dict["audio_path"].append(audio_path)
+            meta_dict["title"].append(df["titles"].values[n])
+            meta_dict["caption"].append(df["descri"].values[n])
 
         return meta_dict
 
-    def load_audio(self, path: str) -> dict:
+    def load_audio_data(self, path: str) -> dict:
 
         audio_duration = librosa.get_duration(path=path)
 
@@ -106,32 +114,40 @@ class Shutterstock(Dataset):
             start_time, clip_duration = self.crop(audio_duration=audio_duration)
         else:
             start_time = 0.
-            duration = None
+            clip_duration = audio_duration
 
+        # Load a clip
         audio = load(
             path=path, 
             sr=self.sr, 
             offset=start_time, 
             duration=clip_duration
-        )
-        # shape: (channels, audio_samples)
+        )  # shape: (channels_num, audio_samples)
+
+        # Transform audio
+        if self.transform is not None:
+            audio = call(transform=self.transform, x=audio)
 
         data = {
             "audio": audio, 
             "start_time": start_time,
-            "duration": clip_duration if clip_duration else audio_duration
+            "duration": clip_duration
         }
-
-        if self.transform is not None:
-            data = self.transform(data)
 
         return data
 
-    def load_target(self, caption: str) -> dict:
+    def load_target_data(self, caption: str) -> np.ndarray:
 
-        data = {"caption": caption}
+        target = caption
 
+        # Transform target
         if self.target_transform:
-            data = self.target_transform(data)
+            target = call(transform=self.target_transform, x=target)
+            # target: (classes_num,)
+
+        data = {
+            "caption": caption,
+            "target": target
+        }
 
         return data
