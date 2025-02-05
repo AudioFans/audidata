@@ -6,7 +6,7 @@ import librosa
 import pandas as pd
 from audidata.io.audio import load
 from audidata.io.crops import RandomCrop
-from audidata.io.midi import read_single_track_midi
+from audidata.io.midi import read_single_track_midi, clip_notes
 from audidata.transforms.audio import Mono
 from audidata.transforms.midi import PianoRoll
 from audidata.utils import call
@@ -169,27 +169,22 @@ class MAESTRO(Dataset):
         start_time: float, 
         duration: float
     ) -> dict:
-        
+
         notes, pedals = read_single_track_midi(
             midi_path=midi_path, 
-            extend_pedal=self.extend_pedal
+            extend_pedal=self.extend_pedal,
         )
 
+        notes = clip_notes(notes, start_time, duration)
+        pedals = clip_notes(pedals, start_time, duration)
+
         target = {
-            "start_time": start_time, 
-            "duration": duration,
-            "note": notes,
-            "pedal": pedals
-        }
-        
-        data = {
             "note": notes,
             "pedal": pedals,
+            "start_time": start_time, 
+            "duration": duration,
         }
         
-        target = data.copy()
-        target.update({"start_time": start_time, "duration": duration})
-
         # Transform target
         if self.target_transform:
             target = call(transform=self.target_transform, x=target)
