@@ -54,6 +54,19 @@ def read_single_track_midi(
     
     return notes, pedals
 
+
+def clip_notes(notes: list, start_time: float, duration: float) -> list:
+
+    clip_notes = []
+    end_time = start_time + duration
+
+    for note in notes:
+        if not (note.end < start_time or note.start > end_time):
+            clip_notes.append(note)
+
+    return clip_notes
+
+
 def read_multi_track_midi(midi_path: str) -> list[dict]:
     r"""Read notes from a multi-track MIDI file.
     Did not implement extend_pedal here. TODO: future work
@@ -129,8 +142,8 @@ def extend_offset_by_pedal(
     pedals = copy.deepcopy(pedals)
     pitches_num = 128
 
-    notes.sort(key=lambda note: note.end)
-
+    notes.sort(key=lambda note: (note.end, note.start))
+    
     notes_dict = {pitch: [] for pitch in range(pitches_num)}
     
     while len(pedals) > 0 and len(notes) > 0:
@@ -156,10 +169,15 @@ def extend_offset_by_pedal(
                     velocity=note.velocity
                 )
 
+                # Change previous note end to new note start when pedal exists
+                if len(notes_dict[pitch]) > 0:
+                    if notes_dict[pitch][-1].end == pedal.end:
+                        notes_dict[pitch][-1].end = new_note.start
+
                 notes_dict[pitch].append(new_note)
                 notes.pop(0)
 
-            elif pedal.end <= note.end < math.inf:
+            elif pedal.end <= note.end:
                 pedals.pop(0)
                 break
 
