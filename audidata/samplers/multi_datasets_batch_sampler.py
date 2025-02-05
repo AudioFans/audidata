@@ -1,31 +1,33 @@
 from __future__ import annotations
 import random
 import numpy as np
-from typing import Optional
 
 from torch.utils.data import Dataset
 
 
 class MultiDatasetsBatchSampler:
     r"""Multiple datasets sampler. First, sample a dataset. Then, sample all 
-    batch indexes from the sampled dataset.
+    batch indexes from the sampled dataset. This class is useful when collating
+    datasets with different keys in a batch. 
     """
 
     def __init__(
         self, 
         datasets: list[Dataset], 
         batch_size: int,
-        weights: Optional[np.ndarray] = None  # Probability of datasets to be sampled
-    ):
+        weights: None | np.ndarray = None  # Probability of datasets to be sampled
+    ) -> None:
 
         self.batch_size = batch_size
         self.datasets_num = len(datasets)
         
         # Probability of datasets to be sampled
-        if weights:
-            self.weights = weights
+        if weights is None:
+            self.weights = [dataset.DURATION for dataset in datasets]
         else:
-            self.weights = [dataset.duration for dataset in datasets]
+            self.weights = weights
+            
+        print("Dataset weights: {}".format(self.weights / np.sum(self.weights)))
 
         # Indexes of audio files of all datasets
         self.indexes_list = [list(range(len(dataset))) for dataset in datasets]
@@ -34,17 +36,16 @@ class MultiDatasetsBatchSampler:
             random.shuffle(indexes)
 
         self.datasets_lens = [len(indexes) for indexes in self.indexes_list]
+        self.p_list = [0 for _ in range(self.datasets_num)]
 
     def __iter__(self) -> list[int]:
         r"""Sample a batch of indexes. First, sample a dataset. Then, sample all 
         batch indexes from the sampled dataset."""
 
-        pointer_list = [0 for _ in range(self.datasets_num)]
-
         while True:
 
-            # Sample a dataset
-            dataset_index = random.choices(
+            # Dataset index
+            m = random.choices(
                 population=range(self.datasets_num), 
                 weights=self.weights
             )[0]
@@ -53,21 +54,18 @@ class MultiDatasetsBatchSampler:
 
             for _ in range(self.batch_size):
 
-                indexes = self.indexes_list[dataset_index]
-                pointer = pointer_list[dataset_index]
-
-                # Reset pointer and shuffle
-                if pointer == len(indexes):
-                    random.shuffle(indexes)
-                    pointer = 0
+                if self.p_list[m] == self.datasets_lens[m]:
+                
+                    # Traversed all data. Reshuffle indexes. Reset pointer.    
+                    random.shuffle(self.indexes_list[m])
+                    self.p_list[m] = 0
 
                 # Get index
-                index = indexes[pointer]
-                pointer += 1
-                pointer_list[dataset_index] = pointer
+                index = self.indexes_list[m][self.p_list[m]]
+                self.p_list[m] += 1
 
                 # Get absolute index
-                abs_index = int(np.sum(self.datasets_lens[0 : dataset_index])) + index
+                abs_index = int(np.sum(self.datasets_lens[0 : m])) + index
                 batch_indexes.append(abs_index)
 
             yield batch_indexes
