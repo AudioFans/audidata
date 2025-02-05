@@ -308,6 +308,64 @@ def free_spoken_digit():
     from IPython import embed; embed(using=False); os._exit(0)
 
 
+def librispeech():
+
+    root = "/datasets/librispeech"
+
+    audio_paths = sorted(list(Path(root).rglob("*.flac")))
+
+    durations = []
+    sample_rates = []
+
+    for n, audio_path in enumerate(audio_paths):
+
+        if n % 100 == 0:
+            print("{}/{}".format(n, len(audio_paths)))
+
+        duration = librosa.get_duration(path=audio_path)
+        durations.append(duration)
+
+        sr = librosa.get_samplerate(path=audio_path)
+        sample_rates.append(sr)
+
+    print("------ LibriSpeech ------")
+    print("Files num: {}".format(len(durations)))
+    print("Duration: {:.2f} s".format(np.sum(durations)))
+
+    fig_path = "./results/LibriSpeech.pdf"
+    plot_histogram(durations=durations, title="LibriSpeech", fig_path=fig_path)
+    from IPython import embed; embed(using=False); os._exit(0)
+
+
+def clotho_aqa():
+
+    root = "/datasets/clotho-aqa"
+
+    audio_paths = sorted(list(Path(root).rglob("*.wav")))
+
+    durations = []
+    sample_rates = []
+
+    for n, audio_path in enumerate(audio_paths):
+
+        if n % 100 == 0:
+            print("{}/{}".format(n, len(audio_paths)))
+
+        duration = librosa.get_duration(path=audio_path)
+        durations.append(duration)
+
+        sr = librosa.get_samplerate(path=audio_path)
+        sample_rates.append(sr)
+
+    print("------ Clotho-AQA ------")
+    print("Files num: {}".format(len(durations)))
+    print("Duration: {:.2f} s".format(np.sum(durations)))
+
+    fig_path = "./results/Clotho-AQA.pdf"
+    plot_histogram(durations=durations, title="Clotho-AQA", fig_path=fig_path)
+    from IPython import embed; embed(using=False); os._exit(0)
+
+
 def plot_histogram(durations: list[float], title: str, fig_path: str):
     
     plt.figure()
@@ -337,4 +395,6 @@ if __name__ == '__main__':
     # isophonics()
     # voicebank_demand()
     # ljspeech()
-    free_spoken_digit()
+    # free_spoken_digit()
+    # librispeech()
+    clotho_aqa()
