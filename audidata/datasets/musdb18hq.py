@@ -103,7 +103,7 @@ class MUSDB18HQ(Dataset):
         for stem in self.stems:
             
             audio_names[stem] = self.list_names[index_dict[stem]]
-            audio_paths[stem] = Path(self.audios_dir, audio_names[stem], "{}.wav".format(stem))
+            audio_paths[stem] = str(Path(self.audios_dir, audio_names[stem], "{}.wav".format(stem)))
             audio_duration = librosa.get_duration(path=audio_paths[stem])
             start_times[stem], clip_durations[stem] = self.crop(audio_duration=audio_duration)
 
@@ -126,6 +126,7 @@ class MUSDB18HQ(Dataset):
             # shape: (channels, audio_samples)
 
             data["{}_audio_name".format(stem)] = audio_names[stem]
+            data["{}_audio_path".format(stem)] = audio_paths[stem]
             data["{}_start_time".format(stem)] = start_times[stem]
 
             # Transform source
