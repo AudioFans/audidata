@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name="audidata", # Replace with your own username
-    version="0.0.3",
+    version="0.0.4",
     author="Qiuqiang Kong",
     author_email="qiuqiangkong@gmail.com",
     description="Audio dataloaders",
