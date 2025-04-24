@@ -6,8 +6,12 @@ class StartCrop:
     r"""Prepare start time and duration of to crop from the start.
     """
 
-    def __init__(self, clip_duration: float):
-        self.start_time = 0.
+    def __init__(
+        self, 
+        start: float = 0.,
+        clip_duration: float = 10.
+    ):
+        self.start_time = start
         self.clip_duration = clip_duration
 
     def __call__(self, **kwargs) -> tuple[float, float]:

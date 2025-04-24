@@ -9,6 +9,7 @@ from audidata.datasets import MAESTRO
 from audidata.io.crops import RandomCrop
 from audidata.transforms.audio import Mono
 from audidata.transforms.midi import PianoRoll
+from audidata.collate.update_collate import default_collate_fn_map
 
 
 if __name__ == '__main__':
